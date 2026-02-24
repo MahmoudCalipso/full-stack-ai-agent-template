@@ -208,13 +208,13 @@ def new(output: Path | None, no_input: bool, name: str | None) -> None:
 )
 @click.option(
     "--reranker",
-    type=click.Choice(["none", "cohere", "cross-encoder"]),
+    type=click.Choice(["none", "cohere", "cross_encoder"]),
     default="none",
     help="Choose reranking logic.",
 )
 @click.option(
     "--document-parser",
-    type=click.Choice(["python-native", "llamaparse"]),
+    type=click.Choice(["python_native", "llamaparse"]),
     default="python_native",
     help="Choose document ingestion engine",
 )

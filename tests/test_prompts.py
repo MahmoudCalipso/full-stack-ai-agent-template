@@ -20,6 +20,7 @@ from fastapi_gen.config import (
     RateLimitStorageType,
     ReverseProxyType,
     WebSocketAuthType,
+    RAGFeatures,
 )
 from fastapi_gen.prompts import (
     _check_cancelled,
@@ -1414,8 +1415,10 @@ class TestRunInteractivePrompts:
     @patch("fastapi_gen.prompts.prompt_database")
     @patch("fastapi_gen.prompts.prompt_basic_info")
     @patch("fastapi_gen.prompts.show_header")
+    @patch("fastapi_gen.prompts.prompt_rag_config")
     def test_ai_agent_with_conversation_persistence(
         self,
+        mock_rag_config: MagicMock,
         mock_header: MagicMock,
         mock_basic_info: MagicMock,
         mock_database: MagicMock,
@@ -1476,6 +1479,7 @@ class TestRunInteractivePrompts:
         mock_ports.return_value = {"backend_port": 8000}
         mock_ai_framework.return_value = AIFrameworkType.PYDANTIC_AI
         mock_llm_provider.return_value = LLMProviderType.OPENAI
+        mock_rag_config.return_value = RAGFeatures(enable_rag=False)  # Skip RAG logic
         mock_websocket_auth.return_value = WebSocketAuthType.JWT
 
         # Mock session management and conversation persistence confirm
