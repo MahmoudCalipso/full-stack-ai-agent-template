@@ -46,6 +46,7 @@ from fastapi_gen.prompts import (
     prompt_python_version,
     prompt_rate_limit_config,
     prompt_reverse_proxy,
+    prompt_rag_config,
     prompt_websocket_auth,
     run_interactive_prompts,
     show_header,
@@ -2070,3 +2071,92 @@ class TestConfirmGeneration:
 
         with pytest.raises(KeyboardInterrupt):
             confirm_generation()
+
+
+class TestPromptRAGConfig:
+    """Tests for prompt_rag_config function."""
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_rag_disabled_by_default(self, mock_questionary: MagicMock) -> None:
+        """Test RAG is disabled by default when user declines."""
+        mock_confirm = MagicMock()
+        mock_confirm.ask.return_value = False
+        mock_questionary.confirm.return_value = mock_confirm
+
+        result = prompt_rag_config(LLMProviderType.OPENAI)
+
+        assert result.enable_rag is False
+        assert result.enable_google_drive_ingestion is False
+        assert result.enable_reranker is False
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_rag_enabled_no_features(self, mock_questionary: MagicMock) -> None:
+        """Test RAG enabled but no additional features selected."""
+        # First call: enable RAG = True
+        # Second call: enable Google Drive = False
+        # Third call: enable reranker = False
+        mock_confirm = MagicMock()
+        mock_confirm.ask.side_effect = [True, False, False]
+        mock_questionary.confirm.return_value = mock_confirm
+
+        result = prompt_rag_config(LLMProviderType.OPENAI)
+
+        assert result.enable_rag is True
+        assert result.enable_google_drive_ingestion is False
+        assert result.enable_reranker is False
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_rag_enabled_with_google_drive(self, mock_questionary: MagicMock) -> None:
+        """Test RAG enabled with Google Drive ingestion."""
+        mock_confirm = MagicMock()
+        mock_confirm.ask.side_effect = [True, True, False]  # RAG, Google Drive, no reranker
+        mock_questionary.confirm.return_value = mock_confirm
+
+        result = prompt_rag_config(LLMProviderType.OPENAI)
+
+        assert result.enable_rag is True
+        assert result.enable_google_drive_ingestion is True
+        assert result.enable_reranker is False
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_rag_enabled_with_reranker(self, mock_questionary: MagicMock) -> None:
+        """Test RAG enabled with reranker."""
+        mock_confirm = MagicMock()
+        mock_confirm.ask.side_effect = [True, False, True]  # RAG, no Google Drive, reranker
+        mock_questionary.confirm.return_value = mock_confirm
+
+        result = prompt_rag_config(LLMProviderType.OPENAI)
+
+        assert result.enable_rag is True
+        assert result.enable_google_drive_ingestion is False
+        assert result.enable_reranker is True
+
+    @patch("fastapi_gen.prompts.questionary")
+    def test_rag_enabled_with_all_features(self, mock_questionary: MagicMock) -> None:
+        """Test RAG enabled with all features."""
+        mock_confirm = MagicMock()
+        mock_confirm.ask.side_effect = [True, True, True]  # RAG, Google Drive, reranker
+        mock_questionary.confirm.return_value = mock_confirm
+
+        result = prompt_rag_config(LLMProviderType.OPENAI)
+
+        assert result.enable_rag is True
+        assert result.enable_google_drive_ingestion is True
+        assert result.enable_reranker is True
+
+    @patch("fastapi_gen.prompts.console")
+    @patch("fastapi_gen.prompts.questionary")
+    def test_prompt_uses_llm_provider(
+        self, mock_questionary: MagicMock, mock_console: MagicMock
+    ) -> None:
+        """Test that prompt_rag_config receives the LLM provider."""
+        mock_confirm = MagicMock()
+        mock_confirm.ask.return_value = False
+        mock_questionary.confirm.return_value = mock_confirm
+
+        # Call with Anthropic provider
+        prompt_rag_config(LLMProviderType.ANTHROPIC)
+
+        # The function should work with any LLM provider without errors
+        # (The provider is passed as argument but not used in current implementation)
+        assert mock_confirm.ask.call_count == 1
