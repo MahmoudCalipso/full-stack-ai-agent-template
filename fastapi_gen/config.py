@@ -153,9 +153,25 @@ class RerankerType(str, Enum):
 
 
 class DocumentParserType(str, Enum):
-    """Define the document parser used to process the documents."""
+    """Define the document parser used to process non-PDF documents.
+    
+    Note: PDF parsing is now controlled separately via PdfParserType.
+    This setting applies to TXT, MD, and DOCX files only.
+    """
 
-    PYTHON_NATIVE = "python_native"  # pdfplumber + python-docx
+    PYTHON_NATIVE = "python_native"  # python-docx for DOCX
+
+
+class PdfParserType(str, Enum):
+    """Define the PDF parser used to process PDF documents.
+    
+    PDFPLUMBER: Fast, free, local PDF extraction using pdfplumber.
+               Only extracts text layer - fails on scanned images.
+    LLAMAPARSE: AI-powered cloud extraction. Handles complex layouts,
+                tables, and scanned documents. Requires API key.
+    """
+
+    PDFPLUMBER = "pdfplumber"  # Local PDF extraction
     LLAMAPARSE = "llamaparse"  # LlamaParse cloud API
 
 
@@ -196,6 +212,7 @@ class ProjectConfig(BaseModel):
     embedding_provider: EmbeddingProviderType = EmbeddingProviderType.OPENAI
     reranker: RerankerType = RerankerType.NONE
     document_parser: DocumentParserType = DocumentParserType.PYTHON_NATIVE
+    pdf_parser: PdfParserType = PdfParserType.PDFPLUMBER
 
     # Authentication
     auth: AuthType = AuthType.JWT
@@ -612,10 +629,14 @@ class ProjectConfig(BaseModel):
             "document_parser": self.document_parser.value
             if self.rag_features.enable_rag
             else "python_native",
+            "pdf_parser": self.pdf_parser.value
+            if self.rag_features.enable_rag
+            else "pdfplumber",
             "use_llamaparse": self.rag_features.enable_rag
-            and self.document_parser == DocumentParserType.LLAMAPARSE,
-            "use_python_parser": self.rag_features.enable_rag
-            and self.document_parser == DocumentParserType.PYTHON_NATIVE,
+            and self.pdf_parser == PdfParserType.LLAMAPARSE,
+            "use_pdfplumber": self.rag_features.enable_rag
+            and self.pdf_parser == PdfParserType.PDFPLUMBER,
+            "use_python_parser": True,  # Always use Python parser for non-PDF
             "enable_google_drive_ingestion": self.rag_features.enable_google_drive_ingestion
             if self.rag_features.enable_rag
             else False,

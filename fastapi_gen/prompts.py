@@ -691,7 +691,7 @@ def prompt_rag_config(llm_provider: LLMProviderType) -> RAGFeatures:
 
     # Prompt for RAG enable/disable
     enable_rag = questionary.confirm(
-        "Enable RAG (Retrieval Augmented Retrieval)?", default=False
+        "Enable RAG (Retrieval Augmented Generation) applications?", default=False
     ).ask()
 
     enable_google_drive_ingestion = False

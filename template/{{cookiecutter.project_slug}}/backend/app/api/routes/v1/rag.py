@@ -138,7 +138,6 @@ async def delete_document(
     success = await ingestion_service.remove_document(name, document_id)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to delete document")
-    return None # Correct for 204
 
 {%- else %}
 """RAG routes - not configured."""

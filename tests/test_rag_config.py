@@ -5,11 +5,10 @@ from pydantic import ValidationError
 
 from fastapi_gen.config import (
     BackgroundTaskType,
-    DatabaseType,
-    DocumentParserType,
     EmbeddingProviderType,
     LLMProviderType,
     OAuthProvider,
+    PdfParserType,
     ProjectConfig,
     RAGFeatures,
     RerankerType,
@@ -297,33 +296,35 @@ class TestRAGCookiecutterContext:
             project_name="test",
             enable_ai_agent=True,
             rag_features=RAGFeatures(enable_rag=True),
-            document_parser=DocumentParserType.LLAMAPARSE,
+            pdf_parser=PdfParserType.LLAMAPARSE,
             background_tasks=BackgroundTaskType.CELERY,
             enable_redis=True,
             enable_docker=True,
         )
         context = config.to_cookiecutter_context()
 
-        assert context["document_parser"] == "llamaparse"
+        assert context["pdf_parser"] == "llamaparse"
         assert context["use_llamaparse"] is True
-        assert context["use_python_parser"] is False
+        assert context["use_pdfplumber"] is False
+        assert context["use_python_parser"] is True  # Always True for non-PDF
 
-    def test_python_native_document_parser_context_flags(self) -> None:
-        """Test Python Native document parser sets correct context flags."""
+    def test_pdfplumber_document_parser_context_flags(self) -> None:
+        """Test pdfplumber document parser sets correct context flags."""
         config = ProjectConfig(
             project_name="test",
             enable_ai_agent=True,
             rag_features=RAGFeatures(enable_rag=True),
-            document_parser=DocumentParserType.PYTHON_NATIVE,
+            pdf_parser=PdfParserType.PDFPLUMBER,
             background_tasks=BackgroundTaskType.CELERY,
             enable_redis=True,
             enable_docker=True,
         )
         context = config.to_cookiecutter_context()
 
-        assert context["document_parser"] == "python_native"
-        assert context["use_python_parser"] is True
+        assert context["pdf_parser"] == "pdfplumber"
         assert context["use_llamaparse"] is False
+        assert context["use_pdfplumber"] is True
+        assert context["use_python_parser"] is True  # Always True for non-PDF
 
     def test_google_drive_ingestion_context_flags(self) -> None:
         """Test Google Drive ingestion sets correct context flags."""

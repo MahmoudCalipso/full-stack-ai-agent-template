@@ -5,10 +5,9 @@ from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 {%- if cookiecutter.use_llamaparse %}
 from llama_cloud import AsyncLlamaCloud
-{%- elif cookiecutter.use_python_parser %}
+{%- endif %}
 import pdfplumber
 from docx import Document as DOCXDocument
-{%- endif %}
 
 from app.rag.config import RAGSettings, DocumentExtensions
 from app.rag.models import Document, DocumentMetadata, DocumentPage, DocumentPageChunk
@@ -40,9 +39,9 @@ class BaseDocumentParser(ABC):
         """Parse a file and read its content."""
         pass
 
-{%- if cookiecutter.use_python_parser %}
-class PythonNativeParser(BaseDocumentParser):
-    """Basic python parser using native Python tools and libraries."""
+
+class TextDocumentParser(BaseDocumentParser):
+    """Parser for text-based documents (TXT, MD)."""
     
     def _parse_text_file(self, filepath: Path) -> Document:
         """Extract raw text from a TXT or MD file."""
@@ -56,7 +55,45 @@ class PythonNativeParser(BaseDocumentParser):
             pages=[page], 
             metadata=self.get_document_metadata(filepath)
         )
+    
+    async def parse(self, filepath: Path) -> Document:
+        if not self.is_extension_allowed(filepath):
+            raise ValueError(f"Extension {filepath.suffix} not supported by TextDocumentParser")
+        
+        if filepath.suffix in (".txt", ".md"):
+            return self._parse_text_file(filepath)
+        else:
+            raise ValueError(f"Unsupported file extension. Allowed extensions: {self.allowed}")
 
+
+class DocxDocumentParser(BaseDocumentParser):
+    """Parser for DOCX documents using python-docx."""
+    
+    def _parse_docx_file(self, filepath: Path) -> Document:
+        """Extract raw text from the DOCX file."""
+        file = DOCXDocument(filepath)
+        page = DocumentPage(
+            page_num=1,
+            content="\n".join([p.text for p in file.paragraphs])
+        )
+        return Document(
+            pages=[page],
+            metadata=self.get_document_metadata(filepath)
+        )
+    
+    async def parse(self, filepath: Path) -> Document:
+        if not self.is_extension_allowed(filepath):
+            raise ValueError(f"Extension {filepath.suffix} not supported by DocxDocumentParser")
+        
+        if filepath.suffix == ".docx":
+            return self._parse_docx_file(filepath)
+        else:
+            raise ValueError(f"Unsupported file extension. Allowed extensions: {self.allowed}")
+
+
+class PdfPlumberParser(BaseDocumentParser):
+    """Local PDF parser using pdfplumber."""
+    
     def _parse_pdf_file(self, filepath: Path) -> Document:
         """
         Extract raw text from a PDF file.
@@ -77,38 +114,20 @@ class PythonNativeParser(BaseDocumentParser):
             pages=pages,
             metadata=self.get_document_metadata(filepath)
         )
-        
-            
-    def _parse_docx_file(self, filepath: Path) -> Document:
-        """Extract raw text from the DOCX file."""
-        file = DOCXDocument(filepath)
-        page = DocumentPage(
-            page_num=1,
-            content="\n".join([p.text for p in file.paragraphs])
-        )
-        return Document(
-            pages=[page],
-            metadata=self.get_document_metadata(filepath)
-        )
     
     async def parse(self, filepath: Path) -> Document:
         if not self.is_extension_allowed(filepath):
-            raise ValueError(f"Extension {filepath.suffix} not supported by PythonNativeParser")
+            raise ValueError(f"Extension {filepath.suffix} not supported by PdfPlumberParser")
         
-        if filepath.suffix in (".txt", ".md"):
-            return self._parse_text_file(filepath)
-        elif filepath.suffix == ".pdf":
+        if filepath.suffix == ".pdf":
             return self._parse_pdf_file(filepath)
-        elif filepath.suffix == ".docx":
-            return self._parse_docx_file(filepath)
         else:
             raise ValueError(f"Unsupported file extension. Allowed extensions: {self.allowed}")
-        
-{%- endif %}
+
 
 {% if cookiecutter.use_llamaparse -%}
 class LlamaParseParser(BaseDocumentParser):
-    """Advanced parser for complex PDFs using LlamaParse."""
+    """Advanced PDF parser using LlamaParse cloud API."""
 
     def __init__(self, api_key: str):
         self.parser = AsyncLlamaCloud(api_key=api_key)
@@ -116,6 +135,9 @@ class LlamaParseParser(BaseDocumentParser):
     async def parse(self, filepath: Path) -> Document:
         if not self.is_extension_allowed(filepath):
             raise ValueError(f"Extension {filepath.suffix} not supported by LlamaParse")
+        
+        if filepath.suffix != ".pdf":
+            raise ValueError("LlamaParse is only supported for PDF files")
         
         # Upload and parse a document
         file_obj = await self.parser.files.create(file=filepath, purpose="parse")
@@ -140,7 +162,13 @@ class LlamaParseParser(BaseDocumentParser):
 
 
 class DocumentProcessor:
-    """Orchestrates parsing and chunking of files into Document objects."""
+    """Orchestrates parsing and chunking of files into Document objects.
+    
+    Uses specialized parsers based on file type:
+    - TXT, MD: TextDocumentParser (always Python native)
+    - DOCX: DocxDocumentParser (always Python native)
+    - PDF: Either PdfPlumberParser or LlamaParseParser based on configuration
+    """
 
     def __init__(self, settings: RAGSettings):
         self.settings = settings
@@ -151,17 +179,30 @@ class DocumentProcessor:
             is_separator_regex=False,
         )
         
+        # Always use Python native parsers for non-PDF files
+        self.text_parser = TextDocumentParser()
+        self.docx_parser = DocxDocumentParser()
+        
+        # PDF parser based on configuration
         {%- if cookiecutter.use_llamaparse %}
-        self.parser = LlamaParseParser(api_key=settings.document_parser.api_key)
+        self.pdf_parser = LlamaParseParser(api_key=settings.pdf_parser.api_key)
         {%- else %}
-        self.parser = PythonNativeParser()
+        self.pdf_parser = PdfPlumberParser()
         {%- endif %}
 
     async def process_file(self, filepath: Path) -> Document:
         """Main entry point: filepath -> Document with chunks."""
         
-        # Extract Text
-        document = await self.parser.parse(filepath)
+        # Route to appropriate parser based on file extension
+        if filepath.suffix in (".txt", ".md"):
+            document = await self.text_parser.parse(filepath)
+        elif filepath.suffix == ".docx":
+            document = await self.docx_parser.parse(filepath)
+        elif filepath.suffix == ".pdf":
+            document = await self.pdf_parser.parse(filepath)
+        else:
+            raise ValueError(f"Unsupported file type: {filepath.suffix}")
+        
         pages = document.pages
 
         chunked_pages: list[DocumentPageChunk] = []

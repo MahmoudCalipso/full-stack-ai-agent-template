@@ -12,11 +12,11 @@ from .config import (
     BackgroundTaskType,
     CIType,
     DatabaseType,
-    DocumentParserType,
     FrontendType,
     LLMProviderType,
     OAuthProvider,
     OrmType,
+    PdfParserType,
     ProjectConfig,
     RAGFeatures,
     RerankerType,
@@ -213,10 +213,10 @@ def new(output: Path | None, no_input: bool, name: str | None) -> None:
     help="Choose reranking logic.",
 )
 @click.option(
-    "--document-parser",
-    type=click.Choice(["python_native", "llamaparse"]),
-    default="python_native",
-    help="Choose document ingestion engine",
+    "--pdf-parser",
+    type=click.Choice(["pdfplumber", "llamaparse"]),
+    default="pdfplumber",
+    help="Choose PDF parser (pdfplumber=local/free, llamaparse=cloud/AI)",
 )
 def create(
     name: str,
@@ -257,7 +257,7 @@ def create(
     rag: bool,
     gdrive_rag: bool,
     reranker: str,
-    document_parser: str,
+    pdf_parser: str,
     preset: str | None,
 ) -> None:
     """Create a new FastAPI project with specified options.
@@ -368,10 +368,10 @@ def create(
                 rag_features=RAGFeatures(
                     enable_rag=rag,
                     enable_google_drive_ingestion=gdrive_rag,
-                    enable_reranker=reranker != True,
+                    enable_reranker=not reranker,
                 ),
                 reranker=RerankerType(reranker),
-                document_parser=DocumentParserType(document_parser),
+                pdf_parser=PdfParserType(pdf_parser),
             )
 
         console.print(f"[cyan]Creating project:[/] {name}")

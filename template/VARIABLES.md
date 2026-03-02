@@ -201,9 +201,11 @@ These variables are set automatically by the generator.
 | `enable_reranker` | enum | `"none"` | Reranker for search results. Values: `cohere`, `cross_encoder`, `none` | Requires RAG |
 | `use_cohere_reranker` | bool | `false` | Cohere reranker is selected | Computed from `enable_reranker` |
 | `use_cross_encoder_reranker` | bool | `false` | Cross-encoder reranker (sentence-transformers) is selected | Computed from `enable_reranker` |
-| `document_parser` | enum | `"python_native"` | Document parsing method. Values: `llamaparse`, `python_native` | Requires RAG |
-| `use_llamaparse` | bool | `false` | LlamaParse (LLM-based) parsing is selected | Computed from `document_parser` |
-| `use_python_parser` | bool | `true` | Python-based parsing is selected | Computed from `document_parser` |
+| `pdf_parser` | enum | `"pdfplumber"` | PDF parsing method. Values: `pdfplumber`, `llamaparse` | Requires RAG |
+| `use_pdfplumber` | bool | `true` | pdfplumber (local) is selected for PDF parsing | Computed from `pdf_parser` |
+| `use_llamaparse` | bool | `false` | LlamaParse (LLM-based) is selected for PDF parsing | Computed from `pdf_parser` |
+| `use_python_parser` | bool | `true` | Python-based parsing is selected (always true for non-PDF) | Always true |
+| `document_parser` | enum | `"python_native"` | **Deprecated** - use `pdf_parser` instead | Deprecated (kept for backward compatibility) |
 | `enable_google_drive_ingestion` | bool | `false` | Enable Google Drive as document source | Requires RAG |
 
 **Notes:**

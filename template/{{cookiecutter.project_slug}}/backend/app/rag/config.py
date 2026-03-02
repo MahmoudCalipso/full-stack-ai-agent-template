@@ -40,12 +40,21 @@ class RerankerConfig(BaseModel):
 
 
 class DocumentParser(BaseModel):
-    """Document parsing settings for RAG features."""
+    """Document parsing settings for RAG features.
+    
+    Note: This now only applies to non-PDF files (txt, md, docx).
+    PDF parsing is controlled separately via pdf_parser.
+    """
+    method: str = "python_native"  # Always python_native for non-PDF
+
+
+class PdfParser(BaseModel):
+    """PDF parsing settings for RAG features."""
     {%- if cookiecutter.use_llamaparse %}
     method: str = "llamaparse"
     api_key: str = ""
     {%- else %}
-    method: str = "python_native"
+    method: str = "pdfplumber"
     {%- endif %}
 
 
@@ -72,6 +81,9 @@ class RAGSettings(BaseModel):
     
     # Document parsing
     document_parser: DocumentParser = Field(default_factory=DocumentParser)
+    
+    # PDF parsing
+    pdf_parser: PdfParser = Field(default_factory=PdfParser)
     
     {%- if cookiecutter.enable_google_drive_ingestion %}
     # Ingestion

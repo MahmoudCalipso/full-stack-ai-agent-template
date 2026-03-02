@@ -110,7 +110,9 @@
   "use_cohere_reranker": false,
   "use_cross_encoder_reranker": false,
   "document_parser": "python_native",
+  "pdf_parser": "pdfplumber",
   "use_llamaparse": false,
+  "use_pdfplumber": true,
   "use_python_parser": true,
   "enable_google_drive_ingestion": false
 }
