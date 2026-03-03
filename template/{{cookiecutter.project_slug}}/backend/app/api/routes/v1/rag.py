@@ -5,7 +5,7 @@ Coordinates between IngestionService for document processing and
 RetrievalService for querying vector data.
 """
 
-from fastapi import APIRouter, Depends, File, UploadFile, status, BackgroundTasks, HTTPException
+from fastapi import APIRouter, File, UploadFile, status, BackgroundTasks, HTTPException
 from pathlib import Path
 import shutil
 import uuid
@@ -19,8 +19,11 @@ from app.schemas.rag import (
     RAGUploadResponse,
     RAGSearchRequest,
     RAGSearchResponse,
+    RAGSearchResult,
     RAGCollectionList,
-    RAGCollectionInfo
+    RAGCollectionInfo,
+    RAGDocumentList,
+    RAGDocumentItem
 )
 
 router = APIRouter()
@@ -30,12 +33,17 @@ async def upload_document(
     name: str,
     background_tasks: BackgroundTasks,
     ingestion_service: IngestionSvc,
-    file: UploadFile = File(...),
-{%- if cookiecutter.use_jwt %}
+    {%- if cookiecutter.use_jwt %}
     current_user: CurrentUser,
-{%- endif %}
+    {%- endif %}
+    file: UploadFile = File(...),
+
 ):
     """Upload and ingest a document into a collection (async - for production use)."""
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[RAG Upload] Received upload request for collection: {name}, filename: {file.filename}")
+    
     temp_dir = Path("/tmp/rag_uploads")
     temp_dir.mkdir(exist_ok=True)
     temp_path = temp_dir / f"{uuid.uuid4()}_{file.filename}"
@@ -60,10 +68,10 @@ async def upload_document(
 async def ingest_document(
     name: str,
     ingestion_service: IngestionSvc,
-    file: UploadFile = File(...),
-{%- if cookiecutter.use_jwt %}
+    {%- if cookiecutter.use_jwt %}
     current_user: CurrentUser,
-{%- endif %}
+    {%- endif %}
+    file: UploadFile = File(...),
 ):
     """Ingest a document synchronously (for immediate processing/testing).
     
@@ -138,6 +146,35 @@ async def get_collection_info(
     return await vector_store.get_collection_info(name)
 
 
+@router.get("/collections/{name}/documents", response_model=RAGDocumentList)
+async def list_documents(
+    name: str,
+    vector_store: VectorStoreSvc,
+{%- if cookiecutter.use_jwt %}
+    current_user: CurrentUser,
+{%- endif %}
+):
+    """List all documents in a specific collection.
+    
+    Returns unique documents with their metadata and chunk count.
+    """
+    documents = await vector_store.get_documents(name)
+    return RAGDocumentList(
+        items=[
+            RAGDocumentItem(
+                document_id=doc.document_id,
+                filename=doc.filename,
+                filesize=doc.filesize,
+                filetype=doc.filetype,
+                chunk_count=doc.chunk_count,
+                additional_info=doc.additional_info,
+            )
+            for doc in documents
+        ],
+        total=len(documents)
+    )
+
+
 @router.post("/search", response_model=RAGSearchResponse)
 async def search_documents(
     request: RAGSearchRequest,
@@ -154,7 +191,11 @@ async def search_documents(
         min_score=request.min_score,
         filter=request.filter or ""
     )
-    return RAGSearchResponse(results=results)
+    api_results = [
+        RAGSearchResult(**hit.model_dump()) 
+        for hit in results
+    ]
+    return RAGSearchResponse(results=api_results)
 
 
 @router.delete("/collections/{name}/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)

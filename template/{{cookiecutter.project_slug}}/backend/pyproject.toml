@@ -13,6 +13,7 @@ dependencies = [
     "uvicorn[standard]>=0.32.0",
     "pydantic[email]>=2.10.0",
     "pydantic-settings>=2.6.0",
+    "python-multipart>=0.0.12",
 {%- if cookiecutter.enable_orjson %}
     "orjson>=3.10.0",
 {%- endif %}

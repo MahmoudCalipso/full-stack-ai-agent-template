@@ -86,7 +86,6 @@ class AssistantAgent:
 {%- if cookiecutter.use_anthropic %}
         model = AnthropicModel(
             self.model_name,
-            api_key=settings.ANTHROPIC_API_KEY,
         )
 {%- endif %}
 {%- if cookiecutter.use_openrouter %}
@@ -120,7 +119,7 @@ class AssistantAgent:
 {%- if cookiecutter.enable_rag %}
         @agent.tool
         async def search_documents(
-            ctx: RunContext[Deps], query: str, collection: str = "default", top_k: int = 5
+            ctx: RunContext[Deps], query: str, collection: str = "documents", top_k: int = 5
         ) -> str:
             """Search the knowledge base for relevant documents.
 
@@ -129,7 +128,7 @@ class AssistantAgent:
 
             Args:
                 query: The search query string.
-                collection: Name of the collection to search (default: "default").
+                collection: Name of the collection to search (default: "documents").
                 top_k: Number of top results to retrieve (default: 5).
 
             Returns:

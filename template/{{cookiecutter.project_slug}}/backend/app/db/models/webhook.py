@@ -4,7 +4,7 @@
 
 import uuid
 from datetime import datetime
-from enum import Enum, StrEnum
+from enum import StrEnum
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as PG_UUID
@@ -91,7 +91,7 @@ class WebhookDelivery(SQLModel, table=True):
 
 import uuid
 from datetime import datetime
-from enum import Enum, StrEnum
+from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
@@ -175,7 +175,7 @@ class WebhookDelivery(Base):
 import json
 import uuid
 from datetime import datetime
-from enum import Enum, StrEnum
+from enum import StrEnum
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlmodel import Field, Relationship, SQLModel
@@ -271,7 +271,7 @@ class WebhookDelivery(SQLModel, table=True):
 import json
 import uuid
 from datetime import datetime
-from enum import Enum, StrEnum
+from enum import StrEnum
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -360,7 +360,7 @@ class WebhookDelivery(Base):
 """Webhook document models (MongoDB)."""
 
 from datetime import UTC, datetime
-from enum import Enum, StrEnum
+from enum import StrEnum
 from typing import Optional
 
 from beanie import Document

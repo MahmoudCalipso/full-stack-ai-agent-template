@@ -1,7 +1,7 @@
 """Configuration models for project generation."""
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from importlib.metadata import version
 from typing import Any
 
@@ -18,7 +18,7 @@ def get_generator_version() -> str:
         return "0.0.0"
 
 
-class DatabaseType(str, Enum):
+class DatabaseType(StrEnum):
     """Supported database types."""
 
     POSTGRESQL = "postgresql"
@@ -27,7 +27,7 @@ class DatabaseType(str, Enum):
     NONE = "none"
 
 
-class AuthType(str, Enum):
+class AuthType(StrEnum):
     """Supported authentication types."""
 
     JWT = "jwt"
@@ -36,7 +36,7 @@ class AuthType(str, Enum):
     NONE = "none"
 
 
-class BackgroundTaskType(str, Enum):
+class BackgroundTaskType(StrEnum):
     """Supported background task systems."""
 
     NONE = "none"
@@ -45,7 +45,7 @@ class BackgroundTaskType(str, Enum):
     ARQ = "arq"
 
 
-class CIType(str, Enum):
+class CIType(StrEnum):
     """Supported CI/CD systems."""
 
     GITHUB = "github"
@@ -53,14 +53,14 @@ class CIType(str, Enum):
     NONE = "none"
 
 
-class FrontendType(str, Enum):
+class FrontendType(StrEnum):
     """Supported frontend frameworks."""
 
     NONE = "none"
     NEXTJS = "nextjs"
 
 
-class WebSocketAuthType(str, Enum):
+class WebSocketAuthType(StrEnum):
     """WebSocket authentication types for AI Agent."""
 
     NONE = "none"
@@ -68,7 +68,7 @@ class WebSocketAuthType(str, Enum):
     API_KEY = "api_key"
 
 
-class AdminEnvironmentType(str, Enum):
+class AdminEnvironmentType(StrEnum):
     """Admin panel environment restriction types."""
 
     ALL = "all"  # Available in all environments
@@ -77,14 +77,14 @@ class AdminEnvironmentType(str, Enum):
     DISABLED = "disabled"  # Disabled everywhere
 
 
-class OAuthProvider(str, Enum):
+class OAuthProvider(StrEnum):
     """Supported OAuth2 providers."""
 
     NONE = "none"
     GOOGLE = "google"
 
 
-class AIFrameworkType(str, Enum):
+class AIFrameworkType(StrEnum):
     """Supported AI agent frameworks."""
 
     PYDANTIC_AI = "pydantic_ai"
@@ -94,7 +94,7 @@ class AIFrameworkType(str, Enum):
     DEEPAGENTS = "deepagents"
 
 
-class LLMProviderType(str, Enum):
+class LLMProviderType(StrEnum):
     """Supported LLM providers."""
 
     OPENAI = "openai"
@@ -102,14 +102,14 @@ class LLMProviderType(str, Enum):
     OPENROUTER = "openrouter"
 
 
-class RateLimitStorageType(str, Enum):
+class RateLimitStorageType(StrEnum):
     """Rate limiting storage backends."""
 
     MEMORY = "memory"
     REDIS = "redis"
 
 
-class ReverseProxyType(str, Enum):
+class ReverseProxyType(StrEnum):
     """Reverse proxy configuration options."""
 
     TRAEFIK_INCLUDED = "traefik_included"  # Include Traefik service + labels
@@ -119,7 +119,7 @@ class ReverseProxyType(str, Enum):
     NONE = "none"  # No reverse proxy, expose ports directly
 
 
-class OrmType(str, Enum):
+class OrmType(StrEnum):
     """Supported ORM libraries for SQL databases."""
 
     SQLALCHEMY = "sqlalchemy"
@@ -136,7 +136,7 @@ class LogfireFeatures(BaseModel):
     httpx: bool = False
 
 
-class EmbeddingProviderType(str, Enum):
+class EmbeddingProviderType(StrEnum):
     """Define the embedding provider for LLM models."""
 
     OPENAI = "openai"  # test-embedding-3-small
@@ -144,7 +144,7 @@ class EmbeddingProviderType(str, Enum):
     SENTENCE_TRANSFORMERS = "sentence_transformers"  # all-MiniLM-L6-v2 (local, for OpenRouter)
 
 
-class RerankerType(str, Enum):
+class RerankerType(StrEnum):
     """Define the reranker type and provider for reranking purposes."""
 
     NONE = "none"
@@ -152,7 +152,7 @@ class RerankerType(str, Enum):
     CROSS_ENCODER = "cross_encoder"  # ms-marco-MiniLM (local)
 
 
-class DocumentParserType(str, Enum):
+class DocumentParserType(StrEnum):
     """Define the document parser used to process non-PDF documents.
     Note: PDF parsing is now controlled separately via PdfParserType.
     This setting applies to TXT, MD, and DOCX files only.
@@ -161,7 +161,7 @@ class DocumentParserType(str, Enum):
     PYTHON_NATIVE = "python_native"  # python-docx for DOCX
 
 
-class PdfParserType(str, Enum):
+class PdfParserType(StrEnum):
     """Define the PDF parser used to process PDF documents.
     PDFPLUMBER: Fast, free, local PDF extraction using pdfplumber.
                Only extracts text layer - fails on scanned images.
@@ -173,7 +173,7 @@ class PdfParserType(str, Enum):
     LLAMAPARSE = "llamaparse"  # LlamaParse cloud API
 
 
-class VectorStoreType(str, Enum):
+class VectorStoreType(StrEnum):
     """Define a Vector Store type."""
 
     MILVUS = "milvus"

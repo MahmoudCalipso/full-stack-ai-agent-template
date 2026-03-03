@@ -111,6 +111,10 @@ services:
   etcd:
     image: quay.io/coreos/etcd:v3.5.16
     container_name: {{ cookiecutter.project_slug }}_etcd
+    command: >
+      etcd --advertise-client-urls http://etcd:2379
+      --listen-client-urls http://0.0.0.0:2379
+      --data-dir /var/lib/etcd
     volumes:
       - etcd_data:/var/lib/etcd
     networks:
@@ -144,8 +148,9 @@ services:
     restart: unless-stopped
 
   milvus:
-    image: milvusdb/milvus:v2.4-latest
+    image: milvusdb/milvus:latest
     container_name: {{ cookiecutter.project_slug }}_milvus
+    command: ["milvus", "run", "standalone"]
     ports:
       - "19530:19530"
       - "9091:9091"

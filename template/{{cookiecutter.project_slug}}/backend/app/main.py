@@ -101,16 +101,15 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
 {%- endif %}
 
 {%- if cookiecutter.enable_rag %}
-    from app.api.deps import get_embedding_service
-    embedder = get_embedding_service()
+    from app.core.config import settings
+    embedder = EmbeddingService(settings=settings.rag)
     embedder.warmup()
     state["embedding_service"] = embedder
 
 {%- if cookiecutter.use_milvus %}
-    from app.api.deps import get_vectorstore
     # Warmup Milvus and verify health
     try:
-        vector_store = get_vectorstore(embedder=embedder)
+        vector_store = MilvusVectorStore(settings=settings.rag, embedding_service=embedder)
         # Verify connectivity
         await vector_store.client.list_collections()
         state["vector_store"] = vector_store

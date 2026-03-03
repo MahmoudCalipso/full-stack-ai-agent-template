@@ -554,7 +554,7 @@ from app.rag.vectorstore import MilvusVectorStore
 from app.rag.retrieval import MilvusRetrievalService
 {%- endif %}
 
-def get_embedding_service(request: Request | None = None) -> EmbeddingService:
+def get_embedding_service(request: Request) -> EmbeddingService:
     """Get embedding service from lifespan state or create new if not available."""
     if request and hasattr(request.state, "embedding_service"):
         return request.state.embedding_service
@@ -565,8 +565,8 @@ EmbeddingSvc = Annotated[EmbeddingService, Depends(get_embedding_service)]
 
 {%- if cookiecutter.use_milvus %}
 def get_vectorstore(
-    request: Request | None = None,
-    embedder: EmbeddingSvc = Depends(get_embedding_service)
+    request: Request,
+    embedder: EmbeddingSvc
 ) -> MilvusVectorStore:
     """Get vector store client from lifespan state or create new if not available."""
     if request and hasattr(request.state, "vector_store"):

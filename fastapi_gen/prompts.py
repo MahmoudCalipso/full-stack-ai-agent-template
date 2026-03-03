@@ -20,6 +20,7 @@ from .config import (
     LogfireFeatures,
     OAuthProvider,
     OrmType,
+    PdfParserType,
     ProjectConfig,
     RAGFeatures,
     RateLimitStorageType,
@@ -696,6 +697,7 @@ def prompt_rag_config() -> RAGFeatures:
 
     enable_google_drive_ingestion = False
     enable_reranker = False
+    pdf_parser = PdfParserType.PDFPLUMBER
 
     # In RAG is enabled, ask for features
     if enable_rag:
@@ -707,10 +709,28 @@ def prompt_rag_config() -> RAGFeatures:
             "Enable Rerank logic (improves accuracy, requires extra API calls)?", default=False
         ).ask()
 
+        # PDF Parser selection
+        pdf_parser_choice = questionary.select(
+            "Select PDF parser:",
+            choices=[
+                questionary.Choice(
+                    "PDFPlumber (fast, local, free) - extracts text layer only",
+                    value=PdfParserType.PDFPLUMBER,
+                ),
+                questionary.Choice(
+                    "LlamaParse (AI-powered, cloud) - handles complex layouts & scanned docs",
+                    value=PdfParserType.LLAMAPARSE,
+                ),
+            ],
+            default=PdfParserType.PDFPLUMBER,
+        ).ask()
+        pdf_parser = PdfParserType(pdf_parser_choice)
+
     return RAGFeatures(
         enable_rag=enable_rag,
         enable_google_drive_ingestion=enable_google_drive_ingestion,
         enable_reranker=enable_reranker,
+        pdf_parser=pdf_parser,
     )
 
 

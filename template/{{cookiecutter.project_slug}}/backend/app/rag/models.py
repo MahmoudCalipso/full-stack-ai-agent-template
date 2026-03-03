@@ -7,7 +7,7 @@ import uuid
 from pydantic import BaseModel, Field, model_validator, computed_field
 from typing import Optional, Any
 
-from enum import Enum
+from enum import StrEnum
 
 
 class DocumentPage(BaseModel):
@@ -63,7 +63,7 @@ class SearchResult(BaseModel):
     parent_doc_id: Optional[str] = None
 
 
-class IngestionStatus(str, Enum):
+class IngestionStatus(StrEnum):
     """A collection of available ingestion statuses."""
     
     NEW = "new"
@@ -89,4 +89,15 @@ class CollectionInfo(BaseModel):
     total_vectors: int
     dim: int
     indexing_status: str = "complete"
+
+
+class DocumentInfo(BaseModel):
+    """Information about a document stored in a collection."""
+    
+    document_id: str
+    filename: Optional[str] = None
+    filesize: Optional[int] = None
+    filetype: Optional[str] = None
+    chunk_count: int = 0
+    additional_info: Optional[dict[str, Any]] = None
 {%- endif %}

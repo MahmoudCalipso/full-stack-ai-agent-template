@@ -1,12 +1,9 @@
-{%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
+{%- if cookiecutter.enable_rag and cookiecutter.use_frontend %}
 {% raw %}import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
-
-export async function GET(request: NextRequest, { params }: RouteParams) {
+// POST /api/v1/rag/search - Search documents
+export async function POST(request: NextRequest) {
   try {
     const accessToken = request.cookies.get("access_token")?.value;
 
@@ -14,19 +11,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const body = await request.json();
 
-    const data = await backendFetch(`/api/v1/conversations/${id}/messages`, {
+    const data = await backendFetch("/api/v1/rag/search", {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify(body),
     });
 
     return NextResponse.json(data);
   } catch (error) {
     if (error instanceof BackendApiError) {
       return NextResponse.json(
-        { detail: error.message || "Failed to fetch messages" },
+        { detail: error.message || "Failed to search documents" },
         { status: error.status }
       );
     }
@@ -35,8 +35,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       { status: 500 }
     );
   }
-}{% endraw %}
+}
+{% endraw %}
 {%- else %}
-// Conversation detail API route - not configured (enable_conversation_persistence is false)
-export {};
+// RAG search route - not configured (enable_rag is false or frontend is disabled)
 {%- endif %}

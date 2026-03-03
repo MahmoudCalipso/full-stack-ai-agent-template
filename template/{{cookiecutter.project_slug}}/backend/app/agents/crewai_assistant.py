@@ -42,7 +42,7 @@ from langchain_anthropic import ChatAnthropic
 from app.agents.prompts import DEFAULT_SYSTEM_PROMPT
 {%- if cookiecutter.enable_rag %}
 from app.agents.prompts import get_system_prompt_with_rag
-from app.agents.tools.rag_tool import search_knowledge_base_sync
+from app.agents.tools.rag_tool import SearchKnowledgeBase
 {%- endif %}
 from app.core.config import settings
 
@@ -213,7 +213,7 @@ class CrewEventQueueListener:
 
 
 {%- if cookiecutter.enable_rag %}
-def _search_knowledge_base_sync(query: str, collection: str = "default", top_k: int = 5) -> str:
+def _search_knowledge_base_sync(query: str, collection: str = "documents", top_k: int = 5) -> str:
     """Synchronous wrapper for RAG search tool.
 
     This sync function is used by CrewAI agents since they run in a
@@ -221,7 +221,7 @@ def _search_knowledge_base_sync(query: str, collection: str = "default", top_k: 
 
     Args:
         query: The search query string.
-        collection: Name of the collection to search (default: "default").
+        collection: Name of the collection to search (default: "documents").
         top_k: Number of top results to retrieve (default: 5).
 
     Returns:
@@ -298,7 +298,7 @@ class CrewAIAssistant:
             ],
             tasks=[
                 TaskConfig(
-                    description=f"Research and analyze the user's query: {{user_input}}. Gather all relevant information needed to provide a comprehensive answer.{task_description_suffix}",
+                    description=f"Research and analyze the user's query: {{ "{{user_input}}" }}. Gather all relevant information needed to provide a comprehensive answer.{task_description_suffix}",
                     expected_output="Comprehensive research findings with key facts and insights",
                     agent_role="Research Analyst",
                 ),
@@ -336,7 +336,9 @@ class CrewAIAssistant:
 {%- if cookiecutter.enable_rag %}
         def get_tools_for_agent(agent_tools: list[str]) -> list:
             """Get tool functions for an agent based on tool names."""
-            tool_map = {"search_documents": _search_knowledge_base_sync}
+            tool_map = {
+                "search_documents": SearchKnowledgeBase(),
+            }
             return [tool_map[name] for name in agent_tools if name in tool_map]
 {%- else %}
         def get_tools_for_agent(agent_tools: list[str]) -> list:
@@ -369,9 +371,7 @@ class CrewAIAssistant:
                 raise ValueError(f"Agent '{task_config.agent_role}' not found")
 
             context = [
-                task_by_agent[role]
-                for role in task_config.context_from
-                if role in task_by_agent
+                task_by_agent[role] for role in task_config.context_from if role in task_by_agent
             ]
 
             task = Task(

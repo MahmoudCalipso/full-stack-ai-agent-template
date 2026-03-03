@@ -50,14 +50,14 @@ def get_retrieval_service() -> "BaseRetrievalService":
 
 async def search_knowledge_base(
     query: str,
-    collection: str = "default",
+    collection: str = "documents",
     top_k: int = 5,
 ) -> str:
     """Search the knowledge base and return formatted results.
 
     Args:
         query: The search query string.
-        collection: Name of the collection to search (default: "default").
+        collection: Name of the collection to search (default: "documents").
         top_k: Number of top results to retrieve (default: 5).
 
     Returns:
@@ -111,8 +111,36 @@ def search_knowledge_base_sync(
     """
     return asyncio.run(search_knowledge_base(query, collection, top_k))
 
+{%- if cookiecutter.use_crewai %}
+from crewai.tools import BaseTool
+from pydantic import BaseModel, Field
 
+class SearchDocumentsInput(BaseModel):
+    query: str = Field(..., description="Query string for searching the knowledge base")
+    collection: str = Field(default="documents", description="Collection to search")
+    top_k: int = Field(default=5, description="Number of top results to return")
+
+class SearchKnowledgeBase(BaseTool):
+    """Search the knowledge base and return formatted results.    
+    """
+    name: str = "search_documents"
+    description: str = (
+        "Search the knowledge base for relevant documents. "
+        "Return formatted excerpts with scores and sources."
+    )
+    args_schema: type[BaseTool] = SearchDocumentsInput
+
+    def _run(self, query: str, collection: str = "documents", top_k: int = 5) -> str:
+        # Use sync wrapper for CrewAI
+        return search_knowledge_base_sync(query, collection, top_k)
+
+    async def _arun(self, query: str, collection: str = "documents", top_k: int = 5) -> str:
+        # Async version
+        return await search_knowledge_base(query, collection, top_k)
+    
+{%- else %}
 __all__ = ["search_knowledge_base", "search_knowledge_base_sync"]
+{%- endif %}
 
 {%- else %}
 """RAG tool - not configured."""

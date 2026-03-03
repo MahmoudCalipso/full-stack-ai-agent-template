@@ -1,8 +1,13 @@
-{%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
+{%- if cookiecutter.enable_rag and cookiecutter.use_frontend %}
 {% raw %}import { NextRequest, NextResponse } from "next/server";
 import { backendFetch, BackendApiError } from "@/lib/server-api";
 
-export async function GET(request: NextRequest) {
+interface RouteParams {
+  params: Promise<{ name: string }>;
+}
+
+// GET /api/v1/rag/collections/:name/info - Get collection info
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const accessToken = request.cookies.get("access_token")?.value;
 
@@ -10,11 +15,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }
 
-    const searchParams = request.nextUrl.searchParams;
-    const skip = searchParams.get("skip") || "0";
-    const limit = searchParams.get("limit") || "50";
+    const { name } = await params;
 
-    const data = await backendFetch(`/api/v1/conversations?skip=${skip}&limit=${limit}`, {
+    const data = await backendFetch(`/api/v1/rag/collections/${name}/info`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
@@ -24,7 +27,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof BackendApiError) {
       return NextResponse.json(
-        { detail: error.message || "Failed to fetch conversations" },
+        { detail: error.message || "Failed to fetch collection info" },
         { status: error.status }
       );
     }
@@ -35,7 +38,8 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+// DELETE /api/v1/rag/collections/:name - Delete collection
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const accessToken = request.cookies.get("access_token")?.value;
 
@@ -43,22 +47,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ detail: "Not authenticated" }, { status: 401 });
     }
 
-    const body = await request.json();
+    const { name } = await params;
 
-    const data = await backendFetch("/api/v1/conversations", {
-      method: "POST",
+    await backendFetch(`/api/v1/rag/collections/${name}`, {
+      method: "DELETE",
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
     });
 
-    return NextResponse.json(data, { status: 201 });
+    return new NextResponse(null, { status: 204 });
   } catch (error) {
     if (error instanceof BackendApiError) {
       return NextResponse.json(
-        { detail: error.message || "Failed to create conversation" },
+        { detail: error.message || "Failed to delete collection" },
         { status: error.status }
       );
     }
@@ -67,8 +69,8 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}{% endraw %}
+}
+{% endraw %}
 {%- else %}
-// Conversations API route - not configured (enable_conversation_persistence is false)
-export {};
+// RAG collection info route - not configured (enable_rag is false or frontend is disabled)
 {%- endif %}

@@ -197,16 +197,6 @@ class Settings(BaseSettings):
         """Build Milvus connection URI."""
         return f"http://{self.MILVUS_HOST}:{self.MILVUS_PORT}"
 
-{%- if cookiecutter.use_openai_embeddings %}
-    # === OpenAI Embeddings ===
-    OPENAI_API_KEY: str = ""
-{%- endif %}
-
-{%- if cookiecutter.use_voyage_embeddings %}
-    # === Voyage AI Embeddings ===
-    VOYAGE_API_KEY: str = ""
-{%- endif %}
-
 {%- if cookiecutter.enable_reranker == "cohere" %}
     # === Cohere Reranker ===
     COHERE_API_KEY: str = ""
@@ -288,7 +278,7 @@ class Settings(BaseSettings):
 {%- endif %}
 {%- if cookiecutter.use_anthropic %}
     ANTHROPIC_API_KEY: str = ""
-    AI_MODEL: str = "claude-sonnet-4-5-20241022"
+    AI_MODEL: str = "claude-sonnet-4-6"
 {%- endif %}
 {%- if cookiecutter.use_openrouter %}
     OPENROUTER_API_KEY: str = ""
@@ -370,12 +360,6 @@ class Settings(BaseSettings):
     GOOGLE_DRIVE_REFRESH_TOKEN: str | None = None
     {%- endif %}
 
-    @computed_field  # type: ignore[prop-decorator]
-    @property
-    def MILVUS_URI(self) -> str:
-        """Build Milvus connection URI."""
-        return f"http://{self.MILVUS_HOST}:{self.MILVUS_PORT}"
-
 {%- endif %}
 
 {%- if cookiecutter.enable_cors %}
@@ -415,6 +399,13 @@ class Settings(BaseSettings):
         return RAGSettings(
             document_parser=DocumentParser(**parser_config)
         )
+
+{%- endif %}
+
+{%- if cookiecutter.enable_rag %}
+# Rebuild Settings to resolve RAGSettings forward reference
+from app.rag.config import RAGSettings
+Settings.model_rebuild()
 {%- endif %}
 
 

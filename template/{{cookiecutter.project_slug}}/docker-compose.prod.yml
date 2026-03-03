@@ -281,6 +281,10 @@ services:
   minio:
     image: minio/minio:RELEASE.2024-09-22T00-33-43Z
     container_name: {{ cookiecutter.project_slug }}_minio
+    command: >
+      etcd --advertise-client-urls http://etcd:2379
+      --listen-client-urls http://0.0.0.0:2379
+      --data-dir /var/lib/etcd
     # NO external ports - only accessible within backend-internal network
     volumes:
       - minio_data:/data
@@ -303,8 +307,9 @@ services:
           memory: 256M
 
   milvus:
-    image: milvusdb/milvus:v2.4-latest
+    image: milvusdb/milvus:latest
     container_name: {{ cookiecutter.project_slug }}_milvus
+    command: ["milvus", "run", "standalone"]
     # NO external ports - only accessible within backend-internal network
     volumes:
       - milvus_data:/var/lib/milvus

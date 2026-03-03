@@ -1,7 +1,7 @@
 {%- if cookiecutter.use_jwt %}
 """User schemas."""
 
-from enum import Enum, StrEnum
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import EmailStr, Field

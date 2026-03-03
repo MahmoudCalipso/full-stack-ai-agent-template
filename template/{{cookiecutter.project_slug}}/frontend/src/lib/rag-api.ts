@@ -7,14 +7,14 @@ import { apiClient, ApiError } from "./api-client";
 
 // RAG API Routes
 export const RAG_API_ROUTES = {
-  COLLECTIONS: "/rag/collections",
-  COLLECTIONS_UPLOAD: (name: string) => `/rag/collections/${name}/upload`,
-  COLLECTIONS_INFO: (name: string) => `/rag/collections/${name}/info`,
-  COLLECTIONS_CREATE: (name: string) => `/rag/collections/${name}`,
-  COLLECTIONS_DELETE: (name: string) => `/rag/collections/${name}`,
+  COLLECTIONS: "/v1/rag/collections",
+  COLLECTIONS_UPLOAD: (name: string) => `/v1/rag/collections/${name}/upload`,
+  COLLECTIONS_INFO: (name: string) => `/v1/rag/collections/${name}/info`,
+  COLLECTIONS_CREATE: (name: string) => `/v1/rag/collections/${name}`,
+  COLLECTIONS_DELETE: (name: string) => `/v1/rag/collections/${name}`,
   COLLECTIONS_DOCUMENT_DELETE: (name: string, documentId: string) =>
-    `/rag/collections/${name}/documents/${documentId}`,
-  SEARCH: "/rag/search",
+    `/v1/rag/collections/${name}/documents/${documentId}`,
+  SEARCH: "/v1/rag/search",
 } as const;
 
 // Types
@@ -63,6 +63,8 @@ export const isRagEnabled = (): boolean => {
 };
 
 // Upload a document to a collection
+// NOTE: This uses direct fetch to support file uploads with FormData.
+// The request goes through Next.js API routes (/api/*) which proxy to the backend.
 export async function uploadDocument(
   collectionName: string,
   file: File
@@ -70,13 +72,16 @@ export async function uploadDocument(
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(
-    `/api/v1/rag/collections/${collectionName}/upload`,
-    {
-      method: "POST",
-      body: formData,
-    }
-  );
+  // Debug: Log the URL being called
+  const url = `/api/v1/rag/collections/${collectionName}/upload`;
+  console.log(`[RAG Upload] Calling: ${url}`, { collectionName, fileName: file.name });
+
+  const response = await fetch(url, {
+    method: "POST",
+    body: formData,
+  });
+
+  console.log(`[RAG Upload] Response status:`, response.status, response.statusText);
 
   if (!response.ok) {
     let errorData;

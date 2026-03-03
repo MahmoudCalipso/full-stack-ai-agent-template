@@ -2,16 +2,16 @@
 """RAG Config.
 
 Variables and constants used in the RAG feature to run it."""
-from enum import Enum
+from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-class DocumentExtensions(str, Enum):
+class DocumentExtensions(StrEnum):
     """Extensions supported by the RAG ingestion pipeline."""
-    PDF = "pdf"
-    DOCX = "docx"
-    MD = "md"
-    TXT = "txt"
+    PDF = ".pdf"
+    DOCX = ".docx"
+    MD = ".md"
+    TXT = ".txt"
 
     
 class EmbeddingsConfig(BaseModel):

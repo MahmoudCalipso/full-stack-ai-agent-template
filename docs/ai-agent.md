@@ -332,14 +332,14 @@ def _register_tools(self, agent: Agent[Deps, str]) -> None:
 ```python
 async def search_knowledge_base(
     query: str,
-    collection: str = "default",
+    collection: str = "documents",
     top_k: int = 5,
 ) -> str:
     """Search the knowledge base and return formatted results.
     
     Args:
         query: The search query string.
-        collection: Name of the collection to search (default: "default").
+        collection: Name of the collection to search (default: "documents").
         top_k: Number of top results to retrieve (default: 5).
     
     Returns:

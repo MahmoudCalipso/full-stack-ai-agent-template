@@ -47,7 +47,7 @@ from app.agents.prompts import get_system_prompt_with_rag
 {%- endif %}
 from app.agents.tools import get_current_datetime
 {%- if cookiecutter.enable_rag %}
-from app.agents.tools.rag_tool import search_knowledge_base_sync
+from app.agents.tools.rag_tool import search_knowledge_base
 {%- endif %}
 from app.core.config import settings
 
@@ -56,7 +56,7 @@ logger = logging.getLogger(__name__)
 
 {%- if cookiecutter.enable_rag %}
 @tool
-def search_documents(query: str, collection: str = "default", top_k: int = 5) -> str:
+async def search_documents(query: str, collection: str = "documents", top_k: int = 5) -> str:
     """Search the knowledge base for relevant documents.
 
     Use this tool to find information from uploaded documents before answering user queries.
@@ -64,13 +64,13 @@ def search_documents(query: str, collection: str = "default", top_k: int = 5) ->
 
     Args:
         query: The search query string.
-        collection: Name of the collection to search (default: "default").
+        collection: Name of the collection to search (default: "documents").
         top_k: Number of top results to retrieve (default: 5).
 
     Returns:
         Formatted string with search results including content and scores.
     """
-    return search_knowledge_base_sync(query=query, collection=collection, top_k=top_k)
+    return await search_knowledge_base(query=query, collection=collection, top_k=top_k)
 
 
 # List of custom tools for DeepAgents when RAG is enabled
@@ -249,6 +249,7 @@ class DeepAgentsAssistant:
                 backend=lambda rt: StateBackend(rt),
                 skills=self.skills,
                 interrupt_on=self.interrupt_on,
+                tools=DEEPAGENTS_CUSTOM_TOOLS,
             )
 
             logger.info(

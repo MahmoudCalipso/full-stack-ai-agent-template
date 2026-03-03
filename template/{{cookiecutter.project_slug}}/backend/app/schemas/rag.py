@@ -41,4 +41,20 @@ class RAGCollectionInfo(BaseModel):
 class RAGCollectionList(BaseModel):
     """List of all available collection names."""
     items: List[str]
+
+
+class RAGDocumentItem(BaseModel):
+    """Information about a single document in a collection."""
+    document_id: str = Field(..., description="Unique identifier of the document")
+    filename: Optional[str] = Field(None, description="Original filename of the document")
+    filesize: Optional[int] = Field(None, description="Size of the file in bytes")
+    filetype: Optional[str] = Field(None, description="MIME type of the file")
+    chunk_count: int = Field(default=0, description="Number of chunks/vectors in the collection")
+    additional_info: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
+
+
+class RAGDocumentList(BaseModel):
+    """List of all documents in a collection."""
+    items: List[RAGDocumentItem]
+    total: int = Field(..., description="Total number of unique documents")
 {%- endif %}

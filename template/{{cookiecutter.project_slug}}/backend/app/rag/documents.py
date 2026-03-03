@@ -15,7 +15,6 @@ from app.rag.models import Document, DocumentMetadata, DocumentPage, DocumentPag
 
 class BaseDocumentParser(ABC):
     """Abstract base class for document parsing strategies.
-    
     Defines the interface that all document parsers must implement.
     Supports parsing of various document formats (PDF, DOCX, TXT, MD).
     """
@@ -24,10 +23,8 @@ class BaseDocumentParser(ABC):
     
     def is_file_existing(self, filepath: Path) -> bool:
         """Check if file exists at the given path.
-        
         Args:
             filepath: Path to the file to check.
-            
         Returns:
             True if the file exists, False otherwise.
         """
@@ -35,10 +32,8 @@ class BaseDocumentParser(ABC):
     
     def is_extension_allowed(self, filepath: Path) -> bool:
         """Check whether document extension is allowed for parsing.
-        
         Args:
             filepath: Path to the file to check.
-            
         Returns:
             True if the extension is supported and file exists.
         """
@@ -46,10 +41,8 @@ class BaseDocumentParser(ABC):
     
     def get_document_metadata(self, filepath: Path) -> DocumentMetadata:
         """Collect metadata about a given document.
-        
         Args:
             filepath: Path to the document file.
-            
         Returns:
             DocumentMetadata object containing file information.
         """
@@ -62,10 +55,8 @@ class BaseDocumentParser(ABC):
     @abstractmethod
     def parse(self, filepath: Path) -> Document:
         """Parse a file and read its content into a Document object.
-        
         Args:
             filepath: Path to the file to parse.
-            
         Returns:
             Document object with parsed content and metadata.
         """
@@ -74,17 +65,14 @@ class BaseDocumentParser(ABC):
 
 class TextDocumentParser(BaseDocumentParser):
     """Parser for text-based documents (TXT, MD).
-    
     Uses Python's built-in file reading capabilities to extract
     text content from plain text and Markdown files.
     """
     
     def _parse_text_file(self, filepath: Path) -> Document:
         """Extract raw text from a TXT or MD file.
-        
         Args:
             filepath: Path to the text file.
-            
         Returns:
             Document object with the file content.
         """
@@ -349,7 +337,9 @@ class DocumentProcessor:
                 chunked_pages.append(DocumentPageChunk(
                     chunk_content=chunk,
                     parent_doc_id=document.id,
-                    **page.model_dump()))
+                    **page.model_dump(
+                        exclude={"parent_doc_id"}
+                    )))
         
         # Add chunked pages to original document
         document.chunked_pages = chunked_pages
