@@ -2,45 +2,50 @@
 """RAG tool for agent knowledge base search."""
 
 import asyncio
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.rag.retrieval import BaseRetrievalService
 
 
-# Module-level lazy singleton for RetrievalService
-_retrieval_service: "BaseRetrievalService | None" = None
+@lru_cache(maxsize=1)
+def _get_retrieval_service_cached() -> "BaseRetrievalService":
+    """Get cached retrieval service singleton.
 
-
-def get_retrieval_service() -> "BaseRetrievalService":
-    """Get or create the module-level lazy singleton RetrievalService.
-
-    This function initializes the service on first call and caches it for
-    subsequent calls. The service is created with dependencies from the
-    application state.
+    This function uses lru_cache to create a cached singleton of the
+    RetrievalService. The cache is initialized on first call and reused
+    for subsequent calls.
 
     Returns:
         Configured BaseRetrievalService instance.
     """
-    global _retrieval_service
-
-    if _retrieval_service is None:
-        # Import here to avoid circular imports at module load time
+    # Import here to avoid circular imports at module load time
 {%- if cookiecutter.use_milvus %}
-        from app.rag.retrieval import MilvusRetrievalService
-        from app.rag.vectorstore import MilvusVectorStore
+    from app.rag.retrieval import MilvusRetrievalService
+    from app.rag.vectorstore import MilvusVectorStore
 {%- else %}
-        raise RuntimeError("RAG requires Milvus vector store. Please enable use_milvus.")
+    raise RuntimeError("RAG requires Milvus vector store. Please enable use_milvus.")
 {%- endif %}
-        from app.rag.embeddings import EmbeddingService
-        from app.rag.config import RAGSettings
+    from app.rag.embeddings import EmbeddingService
+    from app.rag.config import RAGSettings
 
-        settings = RAGSettings()
-        embedding_service = EmbeddingService(settings)
-        vector_store = MilvusVectorStore(settings, embedding_service)
-        _retrieval_service = MilvusRetrievalService(vector_store, settings)
+    settings = RAGSettings()
+    embedding_service = EmbeddingService(settings)
+    vector_store = MilvusVectorStore(settings, embedding_service)
+    return MilvusRetrievalService(vector_store, settings)
 
-    return _retrieval_service
+
+def get_retrieval_service() -> "BaseRetrievalService":
+    """Get the cached RetrievalService instance.
+
+    This function provides access to a cached RetrievalService singleton.
+    It uses lru_cache for proper caching behavior.
+
+    Returns:
+        Configured BaseRetrievalService instance.
+    """
+    return _get_retrieval_service_cached()
 
 
 async def search_knowledge_base(

@@ -548,6 +548,7 @@ from app.rag.embeddings import EmbeddingService
 from app.rag.ingestion import IngestionService
 from app.rag.documents import DocumentProcessor
 from fastapi import Request
+from app.core.config import settings
 {%- if cookiecutter.use_milvus %}
 from app.rag.vectorstore import MilvusVectorStore
 from app.rag.retrieval import MilvusRetrievalService

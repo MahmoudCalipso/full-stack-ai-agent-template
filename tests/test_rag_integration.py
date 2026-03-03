@@ -440,8 +440,87 @@ class TestRAGWithPDFParsers:
         assert "llamaparse" in content.lower()
 
 
-class TestRAGValidation:
-    """Tests for RAG configuration validation."""
+class TestRAGCodePatterns:
+    """Tests for verifying code patterns in generated RAG files."""
+
+    def test_rag_api_uses_list_collections_method(self, tmp_path: Path) -> None:
+        """Test that rag API uses list_collections() method instead of client.list_collections()."""
+        import re
+        config = ProjectConfig(
+            project_name="test_rag_patterns",
+            database=DatabaseType.POSTGRESQL,
+            auth=AuthType.JWT,
+            background_tasks=BackgroundTaskType.CELERY,
+            enable_redis=True,
+            enable_ai_agent=True,
+            rag_features=RAGFeatures(enable_rag=True),
+            enable_docker=True,
+        )
+        project = generate_project(config, tmp_path)
+
+        rag_api = project / "backend" / "app" / "api" / "routes" / "v1" / "rag.py"
+        content = rag_api.read_text()
+
+        # Should use list_collections() method on vector_store
+        assert re.search(r'await\s+vector_store\.list_collections\(\)', content), \
+            "rag.py should use vector_store.list_collections() method"
+
+        # Should NOT directly access client.list_collections()
+        assert not re.search(r'vector_store\.client\.list_collections\(\)', content), \
+            "rag.py should NOT directly access vector_store.client.list_collections()"
+
+    def test_rag_tool_uses_lru_cache(self, tmp_path: Path) -> None:
+        """Test that rag_tool.py uses lru_cache instead of global singleton."""
+        import re
+        config = ProjectConfig(
+            project_name="test_rag_cache",
+            database=DatabaseType.POSTGRESQL,
+            auth=AuthType.JWT,
+            background_tasks=BackgroundTaskType.CELERY,
+            enable_redis=True,
+            enable_ai_agent=True,
+            rag_features=RAGFeatures(enable_rag=True),
+            enable_docker=True,
+        )
+        project = generate_project(config, tmp_path)
+
+        rag_tool = project / "backend" / "app" / "agents" / "tools" / "rag_tool.py"
+        content = rag_tool.read_text()
+
+        # Should use lru_cache
+        assert re.search(r'@lru_cache', content), \
+            "rag_tool.py should use @lru_cache decorator"
+
+        # Should NOT use global singleton pattern
+        assert not re.search(r'^_retrieval_service\s*:', content, re.MULTILINE), \
+            "rag_tool.py should NOT use global singleton pattern"
+
+    def test_rag_vectorstore_has_list_collections_method(self, tmp_path: Path) -> None:
+        """Test that vectorstore.py has list_collections method in both base and milvus classes."""
+        import re
+        config = ProjectConfig(
+            project_name="test_rag_vec",
+            database=DatabaseType.POSTGRESQL,
+            auth=AuthType.JWT,
+            background_tasks=BackgroundTaskType.CELERY,
+            enable_redis=True,
+            enable_ai_agent=True,
+            rag_features=RAGFeatures(enable_rag=True),
+            enable_docker=True,
+        )
+        project = generate_project(config, tmp_path)
+
+        vectorstore = project / "backend" / "app" / "rag" / "vectorstore.py"
+        content = vectorstore.read_text()
+
+        # BaseVectorStore should have abstract list_collections
+        assert re.search(r'async def list_collections\(self\)', content), \
+            "BaseVectorStore should have list_collections method"
+
+        # MilvusVectorStore should implement list_collections
+        assert re.search(r'class MilvusVectorStore.*list_collections', content, re.DOTALL), \
+            "MilvusVectorStore should implement list_collections method"
+
 
     def test_rag_requires_ai_agent(self) -> None:
         """Test that RAG requires AI agent."""

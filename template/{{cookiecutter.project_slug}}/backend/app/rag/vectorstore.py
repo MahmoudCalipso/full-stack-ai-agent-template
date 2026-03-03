@@ -31,6 +31,11 @@ class BaseVectorStore(ABC):
         """Returns metadata and stats about a collection."""
         pass
 
+    @abstractmethod
+    async def list_collections(self) -> list[str]:
+        """Returns list of all collection names."""
+        pass
+
 {%- if cookiecutter.use_milvus %}
 from pymilvus import AsyncMilvusClient, DataType
 from app.core.config import settings as app_settings
@@ -123,6 +128,10 @@ class MilvusVectorStore(BaseVectorStore):
             collection_name=collection_name,
             filter=filter_expr
         )
+
+    async def list_collections(self) -> list[str]:
+        """Returns list of all collection names."""
+        return await self.client.list_collections()
 
 {%- endif %}
 {%- endif %}

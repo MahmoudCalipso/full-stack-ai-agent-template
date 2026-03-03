@@ -64,8 +64,7 @@ async def list_collections(
 {%- endif %}
 ):
     """List all available collections in the vector store."""
-    # Milvus client exposes list_collections
-    names = await vector_store.client.list_collections()
+    names = await vector_store.list_collections()
     return RAGCollectionList(items=names)
 
 
