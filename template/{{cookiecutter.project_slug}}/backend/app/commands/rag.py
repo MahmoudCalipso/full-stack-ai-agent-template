@@ -25,8 +25,19 @@ from app.rag.retrieval import MilvusRetrievalService
 from app.rag.vectorstore import MilvusVectorStore
 
 
-def get_rag_services():
-    """Initialize RAG services for CLI usage."""
+def get_rag_services() -> tuple[RAGSettings, MilvusVectorStore, DocumentProcessor, MilvusRetrievalService, IngestionService]:
+    """Initialize RAG services for CLI usage.
+    
+    Creates and returns all necessary RAG service components:
+    - Settings (RAG configuration)
+    - Vector store (Milvus)
+    - Document processor
+    - Retrieval service
+    - Ingestion service
+    
+    Returns:
+        Tuple of (settings, vector_store, processor, retrieval, ingestion) services.
+    """
     settings = RAGSettings()
     embedder = EmbeddingService(settings=settings)
     vector_store = MilvusVectorStore(settings=settings, embedding_service=embedder)
@@ -36,8 +47,12 @@ def get_rag_services():
     return settings, vector_store, processor, retrieval, ingestion
 
 
-async def list_collections_async(vector_store: MilvusVectorStore):
-    """List all collections with their stats."""
+async def list_collections_async(vector_store: MilvusVectorStore) -> None:
+    """List all collections with their stats.
+    
+    Args:
+        vector_store: The Milvus vector store to query.
+    """
     collection_names = await vector_store.client.list_collections()
     
     if not collection_names:
@@ -72,8 +87,17 @@ async def ingest_path_async(
     vector_store: MilvusVectorStore,
     processor: DocumentProcessor,
     ingestion: IngestionService,
-):
-    """Ingest files from a path (file or directory)."""
+) -> None:
+    """Ingest files from a path (file or directory).
+    
+    Args:
+        path: Path to a file or directory to ingest.
+        collection: Target collection name.
+        recursive: Whether to recursively process directories.
+        vector_store: The Milvus vector store.
+        processor: Document processor for parsing files.
+        ingestion: Ingestion service for storing documents.
+    """
     target_path = Path(path).resolve()
     
     if not target_path.exists():
@@ -165,8 +189,15 @@ async def search_async(
     collection: str,
     top_k: int,
     retrieval: MilvusRetrievalService,
-):
-    """Search the knowledge base."""
+) -> None:
+    """Search the knowledge base.
+    
+    Args:
+        query: The search query.
+        collection: Target collection name.
+        top_k: Number of results to return.
+        retrieval: Retrieval service for searching.
+    """
     info(f"Searching collection '{collection}' for: \"{query}\"")
     click.echo()
     
@@ -226,8 +257,18 @@ def rag_search(query: str, collection: str, top_k: int):
     asyncio.run(search_async(query, collection, top_k, retrieval))
 
 
-async def drop_collection_async(collection: str, yes: bool, vector_store: MilvusVectorStore):
-    """Drop a collection."""
+async def drop_collection_async(
+    collection: str,
+    yes: bool,
+    vector_store: MilvusVectorStore
+) -> None:
+    """Drop a collection.
+    
+    Args:
+        collection: Name of the collection to drop.
+        yes: Whether to skip confirmation prompt.
+        vector_store: The Milvus vector store.
+    """
     if not yes:
         click.confirm(
             f"Are you sure you want to drop collection '{collection}'? This cannot be undone.",
@@ -271,8 +312,16 @@ def rag_stats():
     asyncio.run(stats_async(settings, vector_store))
 
 
-async def stats_async(settings: RAGSettings, vector_store: MilvusVectorStore):
-    """Show RAG system statistics."""
+async def stats_async(
+    settings: RAGSettings,
+    vector_store: MilvusVectorStore
+) -> None:
+    """Show RAG system statistics.
+    
+    Args:
+        settings: RAG configuration settings.
+        vector_store: The Milvus vector store.
+    """
     click.echo("RAG System Statistics")
     click.echo("=" * 40)
     

@@ -4,36 +4,80 @@ from abc import ABC, abstractmethod
 from app.rag.models import Document, SearchResult, CollectionInfo
 
 class BaseVectorStore(ABC):
-    """Contract for any vector database implementation."""
+    """Abstract base class for vector store implementations.
+    
+    Defines the interface that all vector store providers must implement.
+    """
     
     @abstractmethod
     async def insert_document(self, collection_name: str, document: Document) -> None:
-        """Embeds and stores document chunks."""
+        """Embeds and stores document chunks.
+        
+        Args:
+            collection_name: Name of the collection to insert into.
+            document: Document object containing chunked pages to embed and store.
+        """
         pass
 
     @abstractmethod
-    async def search(self, collection_name: str, query: str, limit: int = 4, filter: str = "") -> list[SearchResult]:
-        """Retrieves similar chunks based on a text query."""
+    async def search(
+        self,
+        collection_name: str,
+        query: str,
+        limit: int = 4,
+        filter: str = ""
+    ) -> list[SearchResult]:
+        """Retrieves similar chunks based on a text query.
+        
+        Args:
+            collection_name: Name of the collection to search in.
+            query: The text query to search for.
+            limit: Maximum number of results to return.
+            filter: Optional filter expression for the search.
+            
+        Returns:
+            List of search results sorted by relevance.
+        """
         pass
 
     @abstractmethod
     async def delete_collection(self, collection_name: str) -> None:
-        """Removes a collection and all its data."""
+        """Removes a collection and all its data.
+        
+        Args:
+            collection_name: Name of the collection to delete.
+        """
         pass
 
     @abstractmethod
     async def delete_document(self, collection_name: str, document_id: str) -> None:
-        """Removes all chunks associated with a document ID."""
+        """Removes all chunks associated with a document ID.
+        
+        Args:
+            collection_name: Name of the collection containing the document.
+            document_id: ID of the document to remove.
+        """
         pass
 
     @abstractmethod
     async def get_collection_info(self, collection_name: str) -> CollectionInfo:
-        """Returns metadata and stats about a collection."""
+        """Returns metadata and stats about a collection.
+        
+        Args:
+            collection_name: Name of the collection to get info for.
+            
+        Returns:
+            CollectionInfo object with collection metadata.
+        """
         pass
 
     @abstractmethod
     async def list_collections(self) -> list[str]:
-        """Returns list of all collection names."""
+        """Returns list of all collection names.
+        
+        Returns:
+            List of collection names as strings.
+        """
         pass
 
 {%- if cookiecutter.use_milvus %}
@@ -43,7 +87,19 @@ from app.rag.config import RAGSettings
 from app.rag.embeddings import EmbeddingService
 
 class MilvusVectorStore(BaseVectorStore):
+    """Milvus vector store implementation.
+    
+    Provides vector storage and retrieval capabilities using Milvus.
+    Handles document embedding, storage, and similarity search.
+    """
+    
     def __init__(self, settings: RAGSettings, embedding_service: EmbeddingService):
+        """Initialize the Milvus vector store.
+        
+        Args:
+            settings: RAG configuration settings.
+            embedding_service: Service for generating text embeddings.
+        """
         self.settings = settings
         self.embedder = embedding_service
         self.client = AsyncMilvusClient(
@@ -52,7 +108,11 @@ class MilvusVectorStore(BaseVectorStore):
         )
 
     async def _ensure_collection(self, name: str):
-        """Standardizes collection creation with Schema API."""
+        """Ensure a collection exists, creating it if necessary.
+        
+        Args:
+            name: Name of the collection to ensure exists.
+        """
         if not await self.client.has_collection(name):
             schema = self.client.create_schema(auto_id=False)
             schema.add_field("id", DataType.VARCHAR, is_primary=True, max_length=100)
@@ -64,14 +124,21 @@ class MilvusVectorStore(BaseVectorStore):
             await self.client.create_collection(name, schema=schema, metric_type="COSINE")
             await self.client.load_collection(name)
 
-    async def insert_document(self, collection_name: str, document: Document):
+    async def insert_document(self, collection_name: str, document: Document) -> None:
+        """Embed and store document chunks in Milvus.
+        
+        Args:
+            collection_name: Name of the collection to insert into.
+            document: Document object with chunked pages to embed and store.
+            
+        Raises:
+            ValueError: If document has no chunked pages.
+        """
         await self._ensure_collection(collection_name)
         
         if not document.chunked_pages:
             raise ValueError("Document has no chunked pages. Did you run the processor?")
 
-        # Use the chunks, not the full pages
-        # Assuming embed_document is updated to handle list[DocumentPageChunk]
         vectors = self.embedder.embed_document(document)
         
         data = [
@@ -89,7 +156,24 @@ class MilvusVectorStore(BaseVectorStore):
         ]
         await self.client.insert(collection_name, data=data)
 
-    async def search(self, collection_name: str, query: str, limit: int = 4, filter: str = "") -> list[SearchResult]:
+    async def search(
+        self,
+        collection_name: str,
+        query: str,
+        limit: int = 4,
+        filter: str = ""
+    ) -> list[SearchResult]:
+        """Search for similar chunks using vector similarity.
+        
+        Args:
+            collection_name: Name of the collection to search in.
+            query: The text query to search for.
+            limit: Maximum number of results to return.
+            filter: Optional filter expression for the search.
+            
+        Returns:
+            List of search results sorted by relevance.
+        """
         query_vector = self.embedder.embed_query(query)
         
         results = await self.client.search(
@@ -111,7 +195,14 @@ class MilvusVectorStore(BaseVectorStore):
         ]
 
     async def get_collection_info(self, collection_name: str) -> CollectionInfo:
-        # stats = await self.client.describe_collection(collection_name)
+        """Get metadata and statistics about a collection.
+        
+        Args:
+            collection_name: Name of the collection to get info for.
+            
+        Returns:
+            CollectionInfo object with collection metadata.
+        """
         count = await self.client.get_collection_stats(collection_name)
         return CollectionInfo(
             name=collection_name,
@@ -119,10 +210,21 @@ class MilvusVectorStore(BaseVectorStore):
             dim=self.settings.embeddings_config.dim
         )
         
-    async def delete_collection(self, collection_name: str):
+    async def delete_collection(self, collection_name: str) -> None:
+        """Delete an entire collection and all its data.
+        
+        Args:
+            collection_name: Name of the collection to delete.
+        """
         await self.client.drop_collection(collection_name)
 
-    async def delete_document(self, collection_name: str, document_id: str):
+    async def delete_document(self, collection_name: str, document_id: str) -> None:
+        """Delete all chunks associated with a document ID.
+        
+        Args:
+            collection_name: Name of the collection containing the document.
+            document_id: ID of the document to remove.
+        """
         filter_expr = f'parent_doc_id == "{document_id}"'
         await self.client.delete(
             collection_name=collection_name,
@@ -130,7 +232,11 @@ class MilvusVectorStore(BaseVectorStore):
         )
 
     async def list_collections(self) -> list[str]:
-        """Returns list of all collection names."""
+        """List all available collection names.
+        
+        Returns:
+            List of collection names as strings.
+        """
         return await self.client.list_collections()
 
 {%- endif %}

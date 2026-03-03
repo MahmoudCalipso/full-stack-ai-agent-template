@@ -14,20 +14,45 @@ from app.rag.models import Document, DocumentMetadata, DocumentPage, DocumentPag
 
 
 class BaseDocumentParser(ABC):
-    """Contract for different document parsing strategies."""
+    """Abstract base class for document parsing strategies.
+    
+    Defines the interface that all document parsers must implement.
+    Supports parsing of various document formats (PDF, DOCX, TXT, MD).
+    """
     
     allowed = [f"{ext.value}" for ext in DocumentExtensions]
     
     def is_file_existing(self, filepath: Path) -> bool:
-        """Check if file exists."""
+        """Check if file exists at the given path.
+        
+        Args:
+            filepath: Path to the file to check.
+            
+        Returns:
+            True if the file exists, False otherwise.
+        """
         return Path.exists(filepath)
     
     def is_extension_allowed(self, filepath: Path) -> bool:
-        """Check whether document extension is allowed."""
+        """Check whether document extension is allowed for parsing.
+        
+        Args:
+            filepath: Path to the file to check.
+            
+        Returns:
+            True if the extension is supported and file exists.
+        """
         return filepath.suffix.lower() in self.allowed and self.is_file_existing(filepath)
     
     def get_document_metadata(self, filepath: Path) -> DocumentMetadata:
-        """Collect metadata about given document."""
+        """Collect metadata about a given document.
+        
+        Args:
+            filepath: Path to the document file.
+            
+        Returns:
+            DocumentMetadata object containing file information.
+        """
         return DocumentMetadata(
             filename=filepath.name,
             filesize=filepath.stat().st_size,
@@ -36,15 +61,33 @@ class BaseDocumentParser(ABC):
     
     @abstractmethod
     def parse(self, filepath: Path) -> Document:
-        """Parse a file and read its content."""
+        """Parse a file and read its content into a Document object.
+        
+        Args:
+            filepath: Path to the file to parse.
+            
+        Returns:
+            Document object with parsed content and metadata.
+        """
         pass
 
 
 class TextDocumentParser(BaseDocumentParser):
-    """Parser for text-based documents (TXT, MD)."""
+    """Parser for text-based documents (TXT, MD).
+    
+    Uses Python's built-in file reading capabilities to extract
+    text content from plain text and Markdown files.
+    """
     
     def _parse_text_file(self, filepath: Path) -> Document:
-        """Extract raw text from a TXT or MD file."""
+        """Extract raw text from a TXT or MD file.
+        
+        Args:
+            filepath: Path to the text file.
+            
+        Returns:
+            Document object with the file content.
+        """
         with open(filepath, "r", encoding="utf-8") as f:
             page = DocumentPage(
                 page_num=1,
@@ -57,6 +100,17 @@ class TextDocumentParser(BaseDocumentParser):
         )
     
     async def parse(self, filepath: Path) -> Document:
+        """Parse a text file (TXT or MD).
+        
+        Args:
+            filepath: Path to the text file.
+            
+        Returns:
+            Document object with parsed content.
+            
+        Raises:
+            ValueError: If the file extension is not supported.
+        """
         if not self.is_extension_allowed(filepath):
             raise ValueError(f"Extension {filepath.suffix} not supported by TextDocumentParser")
         
@@ -67,10 +121,21 @@ class TextDocumentParser(BaseDocumentParser):
 
 
 class DocxDocumentParser(BaseDocumentParser):
-    """Parser for DOCX documents using python-docx."""
+    """Parser for DOCX documents using python-docx.
+    
+    Extracts text content from Microsoft Word documents by reading
+    all paragraphs and joining them with newline characters.
+    """
     
     def _parse_docx_file(self, filepath: Path) -> Document:
-        """Extract raw text from the DOCX file."""
+        """Extract raw text from the DOCX file.
+        
+        Args:
+            filepath: Path to the DOCX file.
+            
+        Returns:
+            Document object with the file content.
+        """
         file = DOCXDocument(filepath)
         page = DocumentPage(
             page_num=1,
@@ -82,6 +147,17 @@ class DocxDocumentParser(BaseDocumentParser):
         )
     
     async def parse(self, filepath: Path) -> Document:
+        """Parse a DOCX file.
+        
+        Args:
+            filepath: Path to the DOCX file.
+            
+        Returns:
+            Document object with parsed content.
+            
+        Raises:
+            ValueError: If the file is not a DOCX file.
+        """
         if not self.is_extension_allowed(filepath):
             raise ValueError(f"Extension {filepath.suffix} not supported by DocxDocumentParser")
         
@@ -92,12 +168,23 @@ class DocxDocumentParser(BaseDocumentParser):
 
 
 class PdfPlumberParser(BaseDocumentParser):
-    """Local PDF parser using pdfplumber."""
+    """Local PDF parser using pdfplumber.
+    
+    Extracts text from PDF files using the pdfplumber library.
+    Note: Files that do not have a text layer will be treated as empty.
+    """
     
     def _parse_pdf_file(self, filepath: Path) -> Document:
-        """
-        Extract raw text from a PDF file.
-        CAUTION: Files that do not have text layer are treated as empty.
+        """Extract raw text from a PDF file.
+        
+        Args:
+            filepath: Path to the PDF file.
+            
+        Returns:
+            Document object with pages containing extracted text.
+            
+        Note:
+            Files that do not have a text layer are treated as empty.
         """
         with pdfplumber.open(filepath) as pdf:
             pages = []
@@ -116,6 +203,17 @@ class PdfPlumberParser(BaseDocumentParser):
         )
     
     async def parse(self, filepath: Path) -> Document:
+        """Parse a PDF file.
+        
+        Args:
+            filepath: Path to the PDF file.
+            
+        Returns:
+            Document object with parsed content.
+            
+        Raises:
+            ValueError: If the file is not a PDF file.
+        """
         if not self.is_extension_allowed(filepath):
             raise ValueError(f"Extension {filepath.suffix} not supported by PdfPlumberParser")
         
@@ -127,12 +225,32 @@ class PdfPlumberParser(BaseDocumentParser):
 
 {% if cookiecutter.use_llamaparse -%}
 class LlamaParseParser(BaseDocumentParser):
-    """Advanced PDF parser using LlamaParse cloud API."""
+    """Advanced PDF parser using LlamaParse cloud API.
+    
+    Provides superior PDF parsing by using LlamaParse's AI-powered
+    document understanding capabilities. Returns markdown-formatted content.
+    """
 
     def __init__(self, api_key: str):
+        """Initialize the LlamaParse parser.
+        
+        Args:
+            api_key: LlamaCloud API key for authentication.
+        """
         self.parser = AsyncLlamaCloud(api_key=api_key)
 
     async def parse(self, filepath: Path) -> Document:
+        """Parse a PDF file using LlamaParse.
+        
+        Args:
+            filepath: Path to the PDF file.
+            
+        Returns:
+            Document object with parsed markdown content.
+            
+        Raises:
+            ValueError: If the file is not a PDF file.
+        """
         if not self.is_extension_allowed(filepath):
             raise ValueError(f"Extension {filepath.suffix} not supported by LlamaParse")
         
@@ -164,13 +282,23 @@ class LlamaParseParser(BaseDocumentParser):
 class DocumentProcessor:
     """Orchestrates parsing and chunking of files into Document objects.
     
-    Uses specialized parsers based on file type:
-    - TXT, MD: TextDocumentParser (always Python native)
-    - DOCX: DocxDocumentParser (always Python native)
-    - PDF: Either PdfPlumberParser or LlamaParseParser based on configuration
+    Manages the document processing pipeline:
+    1. Route to appropriate parser based on file extension
+    2. Parse document content
+    3. Chunk document pages using RecursiveCharacterTextSplitter
+    
+    Supported file types:
+    - TXT, MD: TextDocumentParser (Python native)
+    - DOCX: DocxDocumentParser (Python native)
+    - PDF: PdfPlumberParser or LlamaParseParser (based on configuration)
     """
 
     def __init__(self, settings: RAGSettings):
+        """Initialize the document processor.
+        
+        Args:
+            settings: RAG configuration settings.
+        """
         self.settings = settings
         self.splitter = RecursiveCharacterTextSplitter(
             chunk_size=settings.chunk_size,
@@ -191,8 +319,17 @@ class DocumentProcessor:
         {%- endif %}
 
     async def process_file(self, filepath: Path) -> Document:
-        """Main entry point: filepath -> Document with chunks."""
+        """Main entry point: filepath -> Document with chunks.
         
+        Args:
+            filepath: Path to the file to process.
+            
+        Returns:
+            Document object with parsed pages and chunked content.
+            
+        Raises:
+            ValueError: If the file type is not supported.
+        """
         # Route to appropriate parser based on file extension
         if filepath.suffix in (".txt", ".md"):
             document = await self.text_parser.parse(filepath)

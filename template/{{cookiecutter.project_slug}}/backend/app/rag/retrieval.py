@@ -5,7 +5,11 @@ from app.rag.vectorstore import BaseVectorStore
 from app.rag.config import RAGSettings
 
 class BaseRetrievalService(ABC):
-    """Contract for any retrieval service implementation."""
+    """Abstract base class for retrieval service implementations.
+    
+    Defines the interface for querying the vector store and retrieving
+    relevant document chunks based on a query.
+    """
     
     @abstractmethod
     async def retrieve(
@@ -16,7 +20,18 @@ class BaseRetrievalService(ABC):
         min_score: float = 0.0,
         filter: str = ""
     ) -> list[SearchResult]:
-        """Executes the retrieval pipeline."""
+        """Execute the retrieval pipeline to find relevant chunks.
+        
+        Args:
+            query: The search query text.
+            collection_name: Name of the collection to search in.
+            limit: Maximum number of results to return.
+            min_score: Minimum similarity score threshold (0.0 to 1.0).
+            filter: Optional filter expression for the search.
+            
+        Returns:
+            List of SearchResult objects sorted by relevance.
+        """
         pass
 
     @abstractmethod
@@ -27,16 +42,37 @@ class BaseRetrievalService(ABC):
         document_id: str,
         limit: int = 3
     ) -> list[SearchResult]:
-        """Specialized retrieval restricted to a single document."""
+        """Specialized retrieval restricted to a single document.
+        
+        Useful for "Chat with this PDF" functionality where results
+        should only come from a specific document.
+        
+        Args:
+            query: The search query text.
+            collection_name: Name of the collection to search in.
+            document_id: ID of the document to restrict search to.
+            limit: Maximum number of results to return.
+            
+        Returns:
+            List of SearchResult objects from the specified document.
+        """
         pass
 
 {%- if cookiecutter.use_milvus %}
 class MilvusRetrievalService(BaseRetrievalService):
-    """
-    High-level service to handle query processing and multi-stage retrieval.
+    """High-level service for query processing and multi-stage retrieval using Milvus.
+    
+    Handles query execution against the Milvus vector store, including
+    vector search, score filtering, and post-processing.
     """
 
     def __init__(self, vector_store: BaseVectorStore, settings: RAGSettings):
+        """Initialize the Milvus retrieval service.
+        
+        Args:
+            vector_store: The vector store to query.
+            settings: RAG configuration settings.
+        """
         self.store = vector_store
         self.settings = settings
 
@@ -48,13 +84,18 @@ class MilvusRetrievalService(BaseRetrievalService):
         min_score: float = 0.0,
         filter: str = ""
     ) -> list[SearchResult]:
-        """
-        Executes the retrieval pipeline: 
-        1. (Optional) Query Expansion/Rewriting
-        2. Vector Search
-        3. Threshold Filtering
-        """
+        """Execute the retrieval pipeline: Vector Search + Threshold Filtering.
         
+        Args:
+            query: The search query text.
+            collection_name: Name of the collection to search in.
+            limit: Maximum number of results to return.
+            min_score: Minimum similarity score threshold (0.0 to 1.0).
+            filter: Optional filter expression for the search.
+            
+        Returns:
+            List of SearchResult objects sorted by relevance.
+        """
         # Execute Search via the Vector Store
         raw_results = await self.store.search(
             collection_name=collection_name,
@@ -64,8 +105,7 @@ class MilvusRetrievalService(BaseRetrievalService):
         )
 
         # Post-processing: Filter by score and limit
-        # Cosine is higher = better.
-        # This example assumes a basic score-based filter.
+        # Cosine similarity is higher = better.
         filtered_results = [
             res for res in raw_results 
             if res.score >= min_score
@@ -81,8 +121,19 @@ class MilvusRetrievalService(BaseRetrievalService):
         document_id: str,
         limit: int = 3
     ) -> list[SearchResult]:
-        """
-        Specialized retrieval restricted to a single document (e.g., 'Chat with this PDF').
+        """Specialized retrieval restricted to a single document.
+        
+        Useful for "Chat with this PDF" functionality where results
+        should only come from a specific document.
+        
+        Args:
+            query: The search query text.
+            collection_name: Name of the collection to search in.
+            document_id: ID of the document to restrict search to.
+            limit: Maximum number of results to return.
+            
+        Returns:
+            List of SearchResult objects from the specified document.
         """
         filter = f'parent_doc_id == "{document_id}"'
         return await self.retrieve(
