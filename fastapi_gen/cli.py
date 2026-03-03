@@ -368,7 +368,7 @@ def create(
                 rag_features=RAGFeatures(
                     enable_rag=rag,
                     enable_google_drive_ingestion=gdrive_rag,
-                    enable_reranker=not reranker,
+                    enable_reranker=(reranker != "none"),
                 ),
                 reranker=RerankerType(reranker),
                 pdf_parser=PdfParserType(pdf_parser),

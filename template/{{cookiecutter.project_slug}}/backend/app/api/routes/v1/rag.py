@@ -35,7 +35,7 @@ async def upload_document(
     current_user: CurrentUser,
 {%- endif %}
 ):
-    """Upload and ingest a document into a collection."""
+    """Upload and ingest a document into a collection (async - for production use)."""
     temp_dir = Path("/tmp/rag_uploads")
     temp_dir.mkdir(exist_ok=True)
     temp_path = temp_dir / f"{uuid.uuid4()}_{file.filename}"
@@ -54,6 +54,39 @@ async def upload_document(
     background_tasks.add_task(ingest_and_cleanup)
     
     return RAGUploadResponse(message=f"Ingestion of {file.filename} started.")
+
+
+@router.post("/collections/{name}/ingest", response_model=RAGUploadResponse, status_code=status.HTTP_201_CREATED)
+async def ingest_document(
+    name: str,
+    ingestion_service: IngestionSvc,
+    file: UploadFile = File(...),
+{%- if cookiecutter.use_jwt %}
+    current_user: CurrentUser,
+{%- endif %}
+):
+    """Ingest a document synchronously (for immediate processing/testing).
+    
+    Unlike the /upload endpoint which processes in background, this endpoint
+    waits for ingestion to complete and returns the document_id immediately.
+    Use this for testing or when you need immediate confirmation of ingestion.
+    """
+    temp_dir = Path("/tmp/rag_uploads")
+    temp_dir.mkdir(exist_ok=True)
+    temp_path = temp_dir / f"{uuid.uuid4()}_{file.filename}"
+    
+    with temp_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    try:
+        result = await ingestion_service.ingest_file(filepath=temp_path, collection_name=name)
+        return RAGUploadResponse(
+            message=result.message,
+            document_id=result.document_id
+        )
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 @router.get("/collections", response_model=RAGCollectionList)
