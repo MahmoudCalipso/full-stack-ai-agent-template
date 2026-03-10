@@ -197,12 +197,7 @@ class Settings(BaseSettings):
         """Build Milvus connection URI."""
         return f"http://{self.MILVUS_HOST}:{self.MILVUS_PORT}"
 
-{%- if cookiecutter.enable_reranker == "cohere" %}
-    # === Cohere Reranker ===
-    COHERE_API_KEY: str = ""
-{%- endif %}
-
-{%- if cookiecutter.document_parser == "llamaparse" %}
+{%- if cookiecutter.pdf_parser == "llamaparse" %}
     # === LlamaParse ===
     LLAMAPARSE_API_KEY: str = ""
 {%- endif %}
@@ -325,7 +320,6 @@ class Settings(BaseSettings):
     # Embeddings
     {%- if cookiecutter.use_openai_embeddings %}
     EMBEDDING_MODEL: str = "text-embedding-3-small"
-    OPENAI_API_KEY: str = ""
     {%- elif cookiecutter.use_voyage_embeddings %}
     EMBEDDING_MODEL: str = "voyage-3"
     VOYAGE_API_KEY: str = ""
@@ -344,12 +338,17 @@ class Settings(BaseSettings):
     RAG_TOP_K: int = 10
 
     # Reranker
-    {%- if cookiecutter.enable_reranker == "cohere" or cookiecutter.use_cohere_reranker %}
+    {%- if cookiecutter.enable_reranker and cookiecutter.use_cohere_reranker %}
     COHERE_API_KEY: str = ""
+    {%- endif %}
+    
+    {%- if cookiecutter.enable_reranker and cookiecutter.use_cross_encoder_reranker %}
+    HF_TOKEN: str = ""
+    CROSS_ENCODER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L6-v2"
     {%- endif %}
 
     # Document Parser
-    {%- if cookiecutter.document_parser == "llamaparse" or cookiecutter.use_llamaparse %}
+    {%- if cookiecutter.pdf_parser == "llamaparse" or cookiecutter.use_llamaparse %}
     LLAMAPARSE_API_KEY: str = ""
     {%- endif %}
 

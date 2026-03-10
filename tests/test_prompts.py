@@ -17,6 +17,7 @@ from fastapi_gen.config import (
     LogfireFeatures,
     OAuthProvider,
     OrmType,
+    PdfParserType,
     RAGFeatures,
     RateLimitStorageType,
     ReverseProxyType,
@@ -2099,6 +2100,11 @@ class TestPromptRAGConfig:
         mock_confirm.ask.side_effect = [True, False, False]
         mock_questionary.confirm.return_value = mock_confirm
 
+        # Mock the PDF parser selection (shown when RAG is enabled)
+        mock_select = MagicMock()
+        mock_select.ask.return_value = PdfParserType.PDFPLUMBER
+        mock_questionary.select.return_value = mock_select
+
         result = prompt_rag_config()
 
         assert result.enable_rag is True
@@ -2111,6 +2117,11 @@ class TestPromptRAGConfig:
         mock_confirm = MagicMock()
         mock_confirm.ask.side_effect = [True, True, False]  # RAG, Google Drive, no reranker
         mock_questionary.confirm.return_value = mock_confirm
+
+        # Mock the PDF parser selection (shown when RAG is enabled)
+        mock_select = MagicMock()
+        mock_select.ask.return_value = PdfParserType.PDFPLUMBER
+        mock_questionary.select.return_value = mock_select
 
         result = prompt_rag_config()
 
@@ -2125,6 +2136,11 @@ class TestPromptRAGConfig:
         mock_confirm.ask.side_effect = [True, False, True]  # RAG, no Google Drive, reranker
         mock_questionary.confirm.return_value = mock_confirm
 
+        # Mock the PDF parser selection (shown when RAG is enabled)
+        mock_select = MagicMock()
+        mock_select.ask.return_value = PdfParserType.PDFPLUMBER
+        mock_questionary.select.return_value = mock_select
+
         result = prompt_rag_config()
 
         assert result.enable_rag is True
@@ -2137,6 +2153,11 @@ class TestPromptRAGConfig:
         mock_confirm = MagicMock()
         mock_confirm.ask.side_effect = [True, True, True]  # RAG, Google Drive, reranker
         mock_questionary.confirm.return_value = mock_confirm
+
+        # Mock the PDF parser selection (shown when RAG is enabled)
+        mock_select = MagicMock()
+        mock_select.ask.return_value = PdfParserType.PDFPLUMBER
+        mock_questionary.select.return_value = mock_select
 
         result = prompt_rag_config()
 

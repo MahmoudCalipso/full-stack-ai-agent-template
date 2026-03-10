@@ -5,7 +5,7 @@ Coordinates between IngestionService for document processing and
 RetrievalService for querying vector data.
 """
 
-from fastapi import APIRouter, File, UploadFile, status, BackgroundTasks, HTTPException
+from fastapi import APIRouter, File, UploadFile, status, BackgroundTasks, HTTPException, Query
 from pathlib import Path
 import shutil
 import uuid
@@ -179,17 +179,27 @@ async def list_documents(
 async def search_documents(
     request: RAGSearchRequest,
     retrieval_service: RetrievalSvc,
-{%- if cookiecutter.use_jwt %}
+    {%- if cookiecutter.use_jwt %}
     current_user: CurrentUser,
-{%- endif %}
+    {%- endif %}
+    use_reranker: bool = Query(False, description="Whether to use reranking (if configured)"),
 ):
-    """Search for relevant document chunks."""
+    """Search for relevant document chunks.
+    
+    Optionally uses reranking to improve result quality.
+    Set use_reranker=true to enable reranking (if configured in the project).
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[RAG Search] Query: '{request.query}', use_reranker: {use_reranker}")
+    
     results = await retrieval_service.retrieve(
         query=request.query,
         collection_name=request.collection_name,
         limit=request.limit,
         min_score=request.min_score,
-        filter=request.filter or ""
+        filter=request.filter or "",
+        use_reranker=use_reranker,
     )
     api_results = [
         RAGSearchResult(**hit.model_dump()) 

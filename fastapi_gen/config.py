@@ -605,7 +605,6 @@ class ProjectConfig(BaseModel):
             and self.llm_provider != LLMProviderType.OPENROUTER,
             "use_cross_encoder_reranker": self.rag_features.enable_reranker
             and self.llm_provider == LLMProviderType.OPENROUTER,
-            "document_parser": "python_native",  # Always use Python parser for non-PDF
             "pdf_parser": self.rag_features.pdf_parser.value
             if self.rag_features.enable_rag
             else "pdfplumber",

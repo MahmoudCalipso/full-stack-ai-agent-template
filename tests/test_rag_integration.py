@@ -370,6 +370,18 @@ class TestRAGWithRerankers:
         # Should not have reranker config
         assert "RerankerConfig" not in content
 
+        # When reranker is disabled, main.py should NOT have reranker warmup
+        main_file = project / "backend" / "app" / "main.py"
+        main_content = main_file.read_text()
+        assert "rerank_service.warmup()" not in main_content
+
+        # deps.py should NOT have RerankService import
+        deps_file = project / "backend" / "app" / "api" / "deps.py"
+        deps_content = deps_file.read_text()
+        # The reranker is optional, so RerankService might not be imported
+        # but the warmup shouldn't be there
+        assert "rerank_service.warmup()" not in main_content
+
     def test_rag_with_cohere_reranker(self, tmp_path) -> None:
         """Test RAG with Cohere reranker."""
         config = ProjectConfig(
@@ -389,6 +401,33 @@ class TestRAGWithRerankers:
         content = rag_config.read_text()
         assert "cohere" in content.lower() or "reranker" in content.lower()
 
+        # reranker.py should exist
+        reranker_file = project / "backend" / "app" / "rag" / "reranker.py"
+        assert reranker_file.exists(), "reranker.py should exist when reranker is enabled"
+        reranker_content = reranker_file.read_text()
+        assert "CohereReranker" in reranker_content
+
+        # retrieval.py should have reranking logic
+        retrieval_file = project / "backend" / "app" / "rag" / "retrieval.py"
+        retrieval_content = retrieval_file.read_text()
+        assert "use_reranker" in retrieval_content
+        assert "rerank_service" in retrieval_content
+
+        # deps.py should have reranker service
+        deps_file = project / "backend" / "app" / "api" / "deps.py"
+        deps_content = deps_file.read_text()
+        assert "RerankService" in deps_content
+
+        # main.py should have reranker warmup
+        main_file = project / "backend" / "app" / "main.py"
+        main_content = main_file.read_text()
+        assert "rerank_service.warmup()" in main_content
+
+        # rag.py API should have use_reranker parameter
+        rag_api_file = project / "backend" / "app" / "api" / "routes" / "v1" / "rag.py"
+        rag_api_content = rag_api_file.read_text()
+        assert "use_reranker" in rag_api_content
+
     def test_rag_with_cross_encoder_reranker(self, tmp_path) -> None:
         """Test RAG with CrossEncoder reranker."""
         config = ProjectConfig(
@@ -407,6 +446,23 @@ class TestRAGWithRerankers:
         rag_config = project / "backend" / "app" / "rag" / "config.py"
         content = rag_config.read_text()
         assert "cross" in content.lower() or "reranker" in content.lower()
+
+        # reranker.py should exist
+        reranker_file = project / "backend" / "app" / "rag" / "reranker.py"
+        assert reranker_file.exists(), "reranker.py should exist when reranker is enabled"
+        reranker_content = reranker_file.read_text()
+        assert "CrossEncoderReranker" in reranker_content
+        assert "cross-encoder/ms-marco-MiniLM-L6-v2" in reranker_content
+
+        # retrieval.py should have reranking logic
+        retrieval_file = project / "backend" / "app" / "rag" / "retrieval.py"
+        retrieval_content = retrieval_file.read_text()
+        assert "use_reranker" in retrieval_content
+
+        # main.py should have reranker warmup
+        main_file = project / "backend" / "app" / "main.py"
+        main_content = main_file.read_text()
+        assert "rerank_service.warmup()" in main_content
 
 
 class TestRAGWithPDFParsers:

@@ -106,6 +106,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[{% if cookiecutter.enable_red
     embedder.warmup()
     state["embedding_service"] = embedder
 
+{%- if cookiecutter.enable_reranker %}
+    # Initialize and warmup reranker (downloads model or validates API key)
+    from app.rag.reranker import RerankService
+    rerank_service = RerankService(settings=settings.rag)
+    rerank_service.warmup()
+    state["rerank_service"] = rerank_service
+{%- endif %}
+
 {%- if cookiecutter.use_milvus %}
     # Warmup Milvus and verify health
     try:

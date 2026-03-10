@@ -339,7 +339,7 @@ async def stats_async(
     click.echo(f"  Embedding dimension: {settings.embeddings_config.dim}")
     click.echo(f"  Chunk size: {settings.chunk_size}")
     click.echo(f"  Chunk overlap: {settings.chunk_overlap}")
-    click.echo(f"  Parser method: {settings.document_parser.method}")
+    click.echo(f"  Parser method: {settings.pdf_parser.method}")
     
     # Per-collection stats
     if collection_names:

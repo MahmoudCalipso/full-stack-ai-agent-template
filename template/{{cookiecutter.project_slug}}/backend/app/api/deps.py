@@ -578,8 +578,21 @@ VectorStoreSvc = Annotated[MilvusVectorStore, Depends(get_vectorstore)]
 def get_retrieval_service(
     vector_store: VectorStoreSvc
 ) -> MilvusRetrievalService:
-    """Create MilvusRetrievalService instance."""
+    """Create MilvusRetrievalService instance.
+    
+    Includes optional reranking service if configured.
+    """
+    {%- if cookiecutter.enable_reranker %}
+    from app.rag.reranker import RerankService
+    rerank_service = RerankService(settings=settings.rag)
+    return MilvusRetrievalService(
+        vector_store=vector_store,
+        settings=settings.rag,
+        rerank_service=rerank_service,
+    )
+    {%- else %}
     return MilvusRetrievalService(vector_store=vector_store, settings=settings.rag)
+    {%- endif %}
 
 RetrievalSvc = Annotated[MilvusRetrievalService, Depends(get_retrieval_service)]
 

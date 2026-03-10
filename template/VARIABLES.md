@@ -205,7 +205,6 @@ These variables are set automatically by the generator.
 | `use_pdfplumber` | bool | `true` | pdfplumber (local) is selected for PDF parsing | Computed from `pdf_parser` |
 | `use_llamaparse` | bool | `false` | LlamaParse (LLM-based) is selected for PDF parsing | Computed from `pdf_parser` |
 | `use_python_parser` | bool | `true` | Python-based parsing is selected (always true for non-PDF) | Always true |
-| `document_parser` | enum | `"python_native"` | **Deprecated** - use `pdf_parser` instead | Deprecated (kept for backward compatibility) |
 | `enable_google_drive_ingestion` | bool | `false` | Enable Google Drive as document source | Requires RAG |
 
 **Notes:**
