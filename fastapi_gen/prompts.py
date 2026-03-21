@@ -13,6 +13,7 @@ from .config import (
     AIFrameworkType,
     AuthType,
     BackgroundTaskType,
+    BrandColorType,
     CIType,
     DatabaseType,
     FrontendType,
@@ -582,7 +583,7 @@ def prompt_frontend() -> FrontendType:
     )
 
 
-def prompt_frontend_features() -> dict[str, bool]:
+def prompt_frontend_features() -> dict[str, Any]:
     """Prompt for frontend-specific features."""
     console.print()
     console.print("[bold cyan]Frontend Features[/]")
@@ -597,8 +598,26 @@ def prompt_frontend_features() -> dict[str, bool]:
         ).ask()
     )
 
+    brand_color = cast(
+        BrandColorType,
+        _check_cancelled(
+            questionary.select(
+                "Select brand color:",
+                choices=[
+                    questionary.Choice("🔵 Blue", value=BrandColorType.BLUE),
+                    questionary.Choice("🟢 Green", value=BrandColorType.GREEN),
+                    questionary.Choice("🔴 Red", value=BrandColorType.RED),
+                    questionary.Choice("🟣 Violet", value=BrandColorType.VIOLET),
+                    questionary.Choice("🟠 Orange", value=BrandColorType.ORANGE),
+                ],
+                default=BrandColorType.BLUE,
+            ).ask()
+        ),
+    )
+
     return {
         "enable_i18n": "i18n" in features,
+        "brand_color": brand_color,
     }
 
 
@@ -727,6 +746,10 @@ def prompt_rag_config() -> RAGFeatures:
                 questionary.Choice(
                     "PyMuPDF (fast, local, free) - text, tables, images, OCR fallback",
                     value=PdfParserType.PYMUPDF,
+                ),
+                questionary.Choice(
+                    "LiteParse (AI-native, local) - layout-aware text, built-in OCR, requires Node.js",
+                    value=PdfParserType.LITEPARSE,
                 ),
                 questionary.Choice(
                     "LlamaParse (AI-powered, cloud) - handles complex layouts & scanned docs",
@@ -1008,7 +1031,7 @@ def run_interactive_prompts() -> ProjectConfig:
         )
 
     # Frontend features (i18n, etc.)
-    frontend_features: dict[str, bool] = {}
+    frontend_features: dict[str, Any] = {}
     if frontend != FrontendType.NONE:
         frontend_features = prompt_frontend_features()
 

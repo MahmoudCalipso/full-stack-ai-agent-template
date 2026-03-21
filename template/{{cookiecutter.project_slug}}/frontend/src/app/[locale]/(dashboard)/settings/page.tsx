@@ -3,10 +3,12 @@
 import { Card, Badge } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme";
 import { Server, Code, Shield, Palette } from "lucide-react";
+import { Breadcrumb } from "@/components/layout/breadcrumb";
 
 export default function SettingsPage() {
   return (
-    <div className="container mx-auto max-w-4xl">
+    <div className="mx-auto max-w-3xl pb-8">
+      <Breadcrumb />
       <div className="mb-6">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">

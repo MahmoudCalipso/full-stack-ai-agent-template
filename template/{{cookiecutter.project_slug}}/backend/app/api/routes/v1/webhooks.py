@@ -15,6 +15,7 @@ from app.schemas.webhook import (
     WebhookDeliveryListResponse,
     WebhookListResponse,
     WebhookRead,
+    WebhookSecretResponse,
     WebhookTestResponse,
     WebhookUpdate,
 )
@@ -145,14 +146,14 @@ async def test_webhook(
     return WebhookTestResponse(**result)
 
 
-@router.post("/{webhook_id}/regenerate-secret")
+@router.post("/{webhook_id}/regenerate-secret", response_model=WebhookSecretResponse)
 async def regenerate_webhook_secret(
     webhook_id: UUID,
     webhook_service: WebhookSvc,
 ):
     """Regenerate the webhook secret."""
     new_secret = await webhook_service.regenerate_secret(webhook_id)
-    return {"secret": new_secret}
+    return WebhookSecretResponse(secret=new_secret)
 
 
 @router.get("/{webhook_id}/deliveries", response_model=WebhookDeliveryListResponse)

@@ -87,6 +87,8 @@ class PdfParser(BaseModel):
     method: str = "llamaparse"
     api_key: str = ""
     tier: str = "agentic"
+{%- elif cookiecutter.use_liteparse %}
+    method: str = "liteparse"
 {%- else %}
     method: str = "pymupdf"
 {%- endif %}

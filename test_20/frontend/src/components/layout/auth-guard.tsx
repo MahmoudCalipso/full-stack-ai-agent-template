@@ -32,8 +32,9 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (checking && !isAuthenticated) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center" role="status" aria-live="polite">
         <Loader2 className="text-muted-foreground h-6 w-6 animate-spin" />
+        <span className="sr-only">Checking authentication...</span>
       </div>
     );
   }

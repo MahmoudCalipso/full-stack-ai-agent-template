@@ -2,33 +2,31 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button, Badge } from "@/components/ui";
-import { Send, Loader2, Mic, MicOff, Paperclip, X } from "lucide-react";
+import { Send, Loader2, Mic, MicOff, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
+import Image from "next/image";
 import { toast } from "sonner";
-
-interface AttachedFile {
-  name: string;
-  content: string;
-}
+import { uploadFile, getFileUrl, type FileUploadResponse } from "@/lib/file-api";
 
 interface ChatInputProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, fileIds?: string[]) => void;
   disabled?: boolean;
   isProcessing?: boolean;
 }
 
 export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
   const [message, setMessage] = useState("");
-  const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<FileUploadResponse[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   useEffect(() => {
-    if (!isProcessing && textareaRef.current) {
+    if (!isProcessing && !isUploading && textareaRef.current) {
       textareaRef.current.focus();
     }
-  }, [isProcessing]);
+  }, [isProcessing, isUploading]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -40,19 +38,13 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = message.trim();
-    if (!trimmed && !attachedFile) return;
-    if (disabled) return;
+    if (!trimmed && attachedFiles.length === 0) return;
+    if (disabled || isUploading) return;
 
-    let fullMessage = trimmed;
-
-    if (attachedFile) {
-      const fileContext = `\n\n---\nAttached file: ${attachedFile.name}\n\`\`\`\n${attachedFile.content}\n\`\`\``;
-      fullMessage = trimmed ? trimmed + fileContext : `Please analyze this file: ${attachedFile.name}` + fileContext;
-      setAttachedFile(null);
-    }
-
-    onSend(fullMessage);
+    const fileIds = attachedFiles.length > 0 ? attachedFiles.map((f) => f.id) : undefined;
+    onSend(trimmed || "Analyze the attached file(s)", fileIds);
     setMessage("");
+    setAttachedFiles([]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -62,6 +54,7 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
     }
   };
 
+  // Speech recognition
   const toggleMic = useCallback(() => {
     if (isListening) {
       recognitionRef.current?.stop();
@@ -114,58 +107,89 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
     finalTranscript = message;
   }, [isListening, message]);
 
+  // File upload to backend
   const handleFileSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
       e.target.value = "";
 
-      const textExtensions = [".txt", ".md", ".csv", ".json", ".py", ".js", ".ts", ".tsx", ".jsx", ".html", ".css", ".yaml", ".yml", ".toml", ".xml", ".sql", ".sh", ".env"];
-      const isTextFile = textExtensions.some((ext) =>
-        file.name.toLowerCase().endsWith(ext)
-      );
+      const maxMb = parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB || "50", 10);
+      for (const file of Array.from(files)) {
+        if (file.size > maxMb * 1024 * 1024) {
+          toast.error(`${file.name}: File too large. Maximum ${maxMb}MB.`);
+          continue;
+        }
 
-      if (!isTextFile) {
-        toast.info("Only text files can be attached. Image and PDF support coming soon.");
-        return;
-      }
-
-      if (file.size > 100_000) {
-        toast.error("File too large. Maximum 100KB for text attachments.");
-        return;
-      }
-
-      try {
-        const content = await file.text();
-        setAttachedFile({ name: file.name, content });
-      } catch {
-        toast.error("Failed to read file");
+        setIsUploading(true);
+        try {
+          const result = await uploadFile(file);
+          setAttachedFiles((prev) => [...prev, result]);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : "Upload failed";
+          toast.error(`${file.name}: ${msg}`);
+        } finally {
+          setIsUploading(false);
+        }
       }
     },
     []
   );
 
+  const removeFile = (fileId: string) => {
+    setAttachedFiles((prev) => prev.filter((f) => f.id !== fileId));
+  };
+
   return (
     <form onSubmit={handleSubmit}>
-      {attachedFile && (
-        <div className="flex items-center gap-2 pb-2">
-          <Badge variant="secondary" className="gap-1.5 pr-1">
-            <Paperclip className="h-3 w-3" />
-            <span className="max-w-[200px] truncate text-xs">
-              {attachedFile.name}
-            </span>
-            <button
-              type="button"
-              onClick={() => setAttachedFile(null)}
-              className="hover:bg-muted ml-0.5 rounded p-0.5"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          </Badge>
+      {/* Attached files */}
+      {attachedFiles.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 pb-2">
+          {attachedFiles.map((file) => (
+            <div key={file.id} className="relative">
+              {file.file_type === "image" ? (
+                <div className="group relative h-16 w-16 overflow-hidden rounded-lg border">
+                  <Image
+                    src={getFileUrl(file.id)}
+                    alt={file.filename}
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeFile(file.id)}
+                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <Badge variant="secondary" className="gap-1.5 pr-1">
+                  <FileText className="h-3 w-3" />
+                  <span className="max-w-[150px] truncate text-xs">
+                    {file.filename}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(file.id)}
+                    className="hover:bg-muted ml-0.5 rounded p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
+            </div>
+          ))}
+          {isUploading && (
+            <div className="flex h-16 w-16 items-center justify-center rounded-lg border border-dashed">
+              <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
+            </div>
+          )}
         </div>
       )}
 
+      {/* Input row */}
       <div className="flex items-end gap-2">
         <textarea
           ref={textareaRef}
@@ -179,6 +203,7 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
         />
 
         <div className="flex shrink-0 items-center gap-0.5 pb-1">
+          {/* Microphone */}
           <Button
             type="button"
             variant="ghost"
@@ -195,29 +220,36 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
             )}
           </Button>
 
+          {/* File attachment */}
           <Button
             type="button"
             variant="ghost"
             size="icon"
             onClick={() => fileInputRef.current?.click()}
-            disabled={disabled}
+            disabled={disabled || isUploading}
             className="h-9 w-9"
             title="Attach file"
           >
-            <Paperclip className="text-muted-foreground h-4 w-4" />
+            {isUploading ? (
+              <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />
+            ) : (
+              <Paperclip className="text-muted-foreground h-4 w-4" />
+            )}
           </Button>
           <input
             ref={fileInputRef}
             type="file"
             onChange={handleFileSelect}
-            accept=".txt,.md,.csv,.json,.py,.js,.ts,.tsx,.html,.css,.yaml,.yml,.toml,.xml,.sql,.sh"
+            accept="image/jpeg,image/png,image/gif,image/webp,.txt,.md,.csv,.json,.py,.js,.ts,.tsx,.html,.css,.yaml,.yml,.toml,.xml,.sql,.sh,.pdf,.docx"
+            multiple
             className="hidden"
           />
 
+          {/* Send */}
           <Button
             type="submit"
             size="icon"
-            disabled={disabled || (!message.trim() && !attachedFile)}
+            disabled={disabled || isUploading || (!message.trim() && attachedFiles.length === 0)}
             className="h-9 w-9 rounded-lg"
           >
             {isProcessing ? (

@@ -84,6 +84,12 @@ class WebhookTestResponse(BaseModel):
     success: bool
     status_code: int | None
     message: str
+
+
+class WebhookSecretResponse(BaseModel):
+    """Response for secret regeneration."""
+
+    secret: str
 {%- else %}
 """Webhook schemas - not configured."""
 {%- endif %}

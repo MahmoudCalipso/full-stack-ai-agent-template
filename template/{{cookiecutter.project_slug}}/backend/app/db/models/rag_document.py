@@ -5,7 +5,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Column, DateTime, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlmodel import Field, SQLModel
 
@@ -20,10 +20,6 @@ class RAGDocument(TimestampMixin, SQLModel, table=True):
     id: uuid.UUID = Field(
         default_factory=uuid.uuid4,
         sa_column=Column(PG_UUID(as_uuid=True), primary_key=True),
-    )
-    user_id: uuid.UUID | None = Field(
-        default=None,
-        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True),
     )
     collection_name: str = Field(sa_column=Column(String(255), nullable=False, index=True))
     filename: str = Field(sa_column=Column(String(255), nullable=False))

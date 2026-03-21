@@ -16,6 +16,7 @@ from app.api.router import api_router
 from app.clients.redis import RedisClient
 from app.core.config import settings
 from app.core.logfire_setup import instrument_app, setup_logfire
+from app.core.logging import setup_logging
 from app.core.middleware import RequestIDMiddleware
 from app.rag.embeddings import EmbeddingService
 from app.rag.vectorstore import MilvusVectorStore
@@ -158,6 +159,9 @@ def create_app() -> FastAPI:
             "description": "Retrieval Augmented Generation endpoints",
         },
     ]
+
+    # PII redaction in logs (GDPR/compliance)
+    setup_logging()
 
     app = FastAPI(
         title=settings.PROJECT_NAME,

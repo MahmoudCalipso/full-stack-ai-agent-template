@@ -35,6 +35,7 @@ export function useChat() {
   const [currentMessageId, setCurrentMessageId] = useState<string | null>(null);
   const currentGroupIdRef = useRef<string | null>(null);
   const messageQueueRef = useRef<{ content: string; fileIds?: string[] }[]>([]);
+  const modelRef = useRef<string | null>(null);
   // Human-in-the-Loop: pending tool approval state
   const [pendingApproval, setPendingApproval] = useState<PendingApproval | null>(null);
 
@@ -356,10 +357,12 @@ export function useChat() {
         conversation_id: conversationId || null,
       };
       if (fileIds?.length) payload.file_ids = fileIds;
+      if (modelRef.current) payload.model = modelRef.current;
       sendMessage(payload);
 {%- else %}
       const payload: Record<string, unknown> = { message: content };
       if (fileIds?.length) payload.file_ids = fileIds;
+      if (modelRef.current) payload.model = modelRef.current;
       sendMessage(payload);
 {%- endif %}
     },
@@ -443,6 +446,7 @@ export function useChat() {
     disconnect,
     sendMessage: sendChatMessage,
     clearMessages,
+    setModel: (model: string | null) => { modelRef.current = model; },
     // Human-in-the-Loop support
     pendingApproval,
     sendResumeDecisions,

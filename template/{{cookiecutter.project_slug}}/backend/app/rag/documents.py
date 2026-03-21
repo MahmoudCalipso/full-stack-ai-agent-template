@@ -6,6 +6,9 @@ from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 {%- if cookiecutter.use_llamaparse %}
 from llama_cloud import AsyncLlamaCloud
+{%- elif cookiecutter.use_liteparse %}
+from liteparse import LiteParse
+from docx import Document as DOCXDocument
 {%- else %}
 import pymupdf
 from docx import Document as DOCXDocument
@@ -397,6 +400,55 @@ class LlamaParseParser(BaseDocumentParser):
         )
 {%- endif %}
 
+{%- if cookiecutter.use_liteparse %}
+
+
+class LiteParseParser(BaseDocumentParser):
+    """Document parser using LiteParse — fast, local, AI-native parsing.
+
+    Uses LiteParse (from LlamaIndex) for layout-aware text extraction.
+    Preserves spatial relationships (tables as ASCII grids) instead of
+    converting to markdown. Built-in OCR via Tesseract.js for scanned pages.
+
+    Requires: pip install liteparse && npm i -g @llamaindex/liteparse
+    """
+
+    def __init__(self) -> None:
+        self.parser = LiteParse()
+
+    async def parse(self, filepath: Path) -> Document:
+        """Parse a document using LiteParse.
+
+        LiteParse returns layout-aware text. If the result has per-page data
+        it's used directly; otherwise full text is split on form-feed chars.
+        """
+        import asyncio
+
+        # LiteParse Python wrapper is synchronous — run in thread
+        result = await asyncio.to_thread(self.parser.parse, str(filepath))
+
+        pages: list[DocumentPage] = []
+
+        # Try per-page output first
+        if hasattr(result, "pages") and result.pages:
+            for i, page in enumerate(result.pages):
+                text = page.text if hasattr(page, "text") else str(page)
+                if text.strip():
+                    pages.append(DocumentPage(page_num=i + 1, content=text))
+        else:
+            # Fallback: split full text on form-feed (\f) as page separator
+            full_text = result.text if hasattr(result, "text") else str(result)
+            page_texts = full_text.split("\f") if "\f" in full_text else [full_text]
+            for i, text in enumerate(page_texts):
+                if text.strip():
+                    pages.append(DocumentPage(page_num=i + 1, content=text.strip()))
+
+        return Document(
+            pages=pages,
+            metadata=self.get_document_metadata(filepath),
+        )
+{%- endif %}
+
 
 class DocumentProcessor:
     """Orchestrates parsing and chunking of files into Document objects.
@@ -432,6 +484,10 @@ class DocumentProcessor:
         {%- if cookiecutter.use_llamaparse %}
         # LlamaParse handles PDF, DOCX, PPTX, XLSX, images, and more
         self.llamaparse_parser = LlamaParseParser(api_key=settings.pdf_parser.api_key, tier=settings.pdf_parser.tier)
+        {%- elif cookiecutter.use_liteparse %}
+        # LiteParse handles PDFs with layout-aware text extraction
+        self.liteparse_parser = LiteParseParser()
+        self.docx_parser = DocxDocumentParser()
         {%- else %}
         self.docx_parser = DocxDocumentParser()
         {%- if cookiecutter.enable_rag_image_description %}
@@ -558,6 +614,11 @@ class DocumentProcessor:
         {%- if cookiecutter.use_llamaparse %}
         elif self.llamaparse_parser.is_extension_allowed(filepath):
             document = await self.llamaparse_parser.parse(filepath)
+        {%- elif cookiecutter.use_liteparse %}
+        elif filepath.suffix == ".docx":
+            document = await self.docx_parser.parse(filepath)
+        elif filepath.suffix == ".pdf":
+            document = await self.liteparse_parser.parse(filepath)
         {%- else %}
         elif filepath.suffix == ".docx":
             document = await self.docx_parser.parse(filepath)

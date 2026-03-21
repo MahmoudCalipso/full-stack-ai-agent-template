@@ -9,7 +9,7 @@ authors = [
 ]
 
 dependencies = [
-    "fastapi>=0.115.0",
+    "fastapi>=0.135.0",
     "uvicorn[standard]>=0.32.0",
     "pydantic[email]>=2.10.0",
     "pydantic-settings>=2.6.0",
@@ -205,12 +205,15 @@ dependencies = [
 {%- if cookiecutter.use_cross_encoder_reranker %}
     "sentence-transformers>=3.0.0",
 {%- endif %}
-{%- if not cookiecutter.use_llamaparse %}
+{%- if cookiecutter.use_llamaparse %}
+    "llama-cloud>=1.0.0",
+{%- elif cookiecutter.use_liteparse %}
+    "liteparse>=0.1.0",
+    "python-docx>=1.1.0",
+{%- else %}
     "pymupdf>=1.25.0",
     "pillow>=10.0.0",
     "python-docx>=1.1.0",
-{%- else %}
-    "llama-cloud>=1.0.0",
 {%- endif %}
 {%- if cookiecutter.enable_google_drive_ingestion %}
     "google-api-python-client>=2.0.0",
@@ -294,6 +297,25 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = [
+    "app/main.py",
+    "app/core/logfire_setup.py",
+]
+
+[tool.coverage.report]
+fail_under = 100
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ ==",
+    "@overload",
+    "raise NotImplementedError",
+    "\\.\\.\\.",
+]
 
 [tool.{{ cookiecutter.generator_name }}]
 generator_version = "{{ cookiecutter.generator_version }}"

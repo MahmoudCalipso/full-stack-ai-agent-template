@@ -43,7 +43,7 @@ class Webhook(TimestampMixin, SQLModel, table=True):
     description: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     user_id: uuid.UUID | None = Field(
         default=None,
-        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True),
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True),
     )
 
     # Relationship to delivery logs
@@ -63,7 +63,7 @@ class WebhookDelivery(SQLModel, table=True):
         sa_column=Column(PG_UUID(as_uuid=True), primary_key=True),
     )
     webhook_id: uuid.UUID = Field(
-        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("webhooks.id"), nullable=False),
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("webhooks.id"), nullable=False, index=True),
     )
     event_type: str = Field(max_length=100)
     payload: str = Field(sa_column=Column(Text, nullable=False))
@@ -72,7 +72,7 @@ class WebhookDelivery(SQLModel, table=True):
     error_message: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     attempt_count: int = Field(default=1)
     success: bool = Field(default=False)
-    created_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
+    created_at: datetime = Field(sa_column=Column(DateTime, nullable=False, index=True))
     delivered_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime, nullable=True),

@@ -39,7 +39,7 @@ def _build_health_response(
 
 
 @router.get("/health")
-async def health_check() -> dict[str, str]:
+async def health_check() -> dict[str, Any]:
     """Simple liveness probe - check if application is running.
 
     This is a lightweight check that should always succeed if the
@@ -48,7 +48,10 @@ async def health_check() -> dict[str, str]:
     Returns:
         {"status": "healthy"}
     """
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "max_upload_size_mb": settings.MAX_UPLOAD_SIZE_MB,
+    }
 
 
 @router.get("/health/live")

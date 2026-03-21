@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
 
 from app.api.deps import DBSession, CurrentUser
@@ -95,11 +95,13 @@ async def upload_file(
         )
 
     # Read file
+    from app.core.config import settings
+    max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
     data = await file.read()
-    if len(data) > MAX_UPLOAD_SIZE:
+    if len(data) > max_size:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=f"File too large. Maximum size is {MAX_UPLOAD_SIZE // (1024*1024)}MB.",
+            detail=f"File too large. Maximum size is {settings.MAX_UPLOAD_SIZE_MB}MB.",
         )
 
     file_type = classify_file(file.content_type or "", file.filename or "unknown")
@@ -158,13 +160,11 @@ async def download_file(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     storage = get_file_storage()
-    data = await storage.load(chat_file.storage_path)
+    file_path = storage.get_full_path(chat_file.storage_path)
+    if not file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
 
-    return Response(
-        content=data,
-        media_type=chat_file.mime_type,
-        headers={"Content-Disposition": f'inline; filename="{chat_file.filename}"'},
-    )
+    return FileResponse(path=file_path, filename=chat_file.filename, media_type=chat_file.mime_type)
 
 
 @router.get("/{file_id}/info", response_model=FileInfo)

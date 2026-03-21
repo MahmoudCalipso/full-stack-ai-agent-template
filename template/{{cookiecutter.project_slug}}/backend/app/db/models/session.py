@@ -24,6 +24,7 @@ class Session(SQLModel, table=True):
             PG_UUID(as_uuid=True),
             ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
+            index=True,
         ),
     )
     refresh_token_hash: str = Field(
@@ -81,7 +82,7 @@ class Session(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     refresh_token_hash: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     device_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -128,6 +129,7 @@ class Session(SQLModel, table=True):
             String(36),
             ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
+            index=True,
         ),
     )
     refresh_token_hash: str = Field(
@@ -182,7 +184,7 @@ class Session(Base):
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     user_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     refresh_token_hash: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
     device_name: Mapped[str | None] = mapped_column(String(255), nullable=True)

@@ -4,7 +4,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
-import { Card, CardContent } from "@/components/ui";
+import { Card, CardContent, Skeleton } from "@/components/ui";
 import { ROUTES } from "@/lib/constants";
 
 function AuthCallbackContent() {
@@ -89,8 +89,8 @@ function LoadingFallback() {
     <Card className="w-full max-w-md">
       <CardContent className="pt-6">
         <div className="text-center">
-          <div className="border-primary mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-b-2" />
-          <p className="text-muted-foreground">Loading...</p>
+          <Skeleton className="mx-auto mb-4 h-8 w-8 rounded-full" />
+          <Skeleton className="mx-auto h-4 w-32 rounded" />
         </div>
       </CardContent>
     </Card>

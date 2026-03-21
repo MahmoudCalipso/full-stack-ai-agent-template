@@ -168,6 +168,12 @@ function LocalChatContainer() {
   );
 }
 
+import { useState as useModelState } from "react";
+import { ChevronDown, Check } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from "@/components/ui";
+
 const AVAILABLE_MODELS = [
   { value: "", label: "Default" },
   { value: "anthropic/claude-sonnet-4", label: "Claude Sonnet 4" },
@@ -176,6 +182,33 @@ const AVAILABLE_MODELS = [
   { value: "openai/gpt-4o-mini", label: "GPT-4o Mini" },
   { value: "google/gemini-2.5-flash-preview", label: "Gemini 2.5 Flash" },
 ];
+
+function ModelSelector({ models, onChange }: { models: typeof AVAILABLE_MODELS; onChange: (model: string | null) => void }) {
+  const [selected, setSelected] = useModelState(models[0]);
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors">
+          {selected.label}
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        {models.map((m) => (
+          <DropdownMenuItem
+            key={m.value}
+            onClick={() => { setSelected(m); onChange(m.value || null); }}
+            className="flex items-center justify-between text-xs"
+          >
+            {m.label}
+            {selected.value === m.value && <Check className="h-3.5 w-3.5" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 interface ChatUIProps {
   messages: import("@/types").ChatMessage[];
@@ -230,34 +263,26 @@ function ChatUI({
       )}
 
       <div className="px-2 pb-2 sm:px-4 sm:pb-4">
-        <div className="bg-card rounded-xl border p-3 shadow-sm sm:p-4">
-          {/* Status bar with model selector */}
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
+        <div className="bg-card rounded-xl border shadow-sm">
+          {/* Textarea area */}
+          <div className="px-3 pt-3 sm:px-4 sm:pt-4">
+            <ChatInput
+              onSend={sendMessage}
+              disabled={!isConnected || !!pendingApproval}
+              isProcessing={isProcessing}
+            />
+          </div>
+          {/* Bottom bar: attach left, status + model + send right */}
+          <div className="flex items-center justify-between px-3 pb-2 sm:px-4 sm:pb-3">
+            <div className="flex items-center gap-1">
               <span
                 className={`inline-block h-1.5 w-1.5 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
               />
-              <span className="text-muted-foreground text-[11px]">
-                {isConnected ? "Connected" : "Disconnected"}
-              </span>
             </div>
             {onModelChange && (
-              <select
-                onChange={(e) => onModelChange(e.target.value || null)}
-                className="text-muted-foreground cursor-pointer appearance-none rounded border border-border bg-transparent px-2 py-0.5 text-[11px] focus:outline-none focus:ring-1 focus:ring-ring"
-                defaultValue=""
-              >
-                {AVAILABLE_MODELS.map((m) => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
+              <ModelSelector models={AVAILABLE_MODELS} onChange={onModelChange} />
             )}
           </div>
-          <ChatInput
-            onSend={sendMessage}
-            disabled={!isConnected || !!pendingApproval}
-            isProcessing={isProcessing}
-          />
         </div>
       </div>
     </div>

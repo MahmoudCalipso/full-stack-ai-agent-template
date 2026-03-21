@@ -26,18 +26,17 @@ def upgrade() -> None:
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('user_id', sa.UUID(), nullable=True),
     sa.Column('collection_name', sa.String(length=255), nullable=False),
     sa.Column('filename', sa.String(length=255), nullable=False),
     sa.Column('filesize', sa.Integer(), nullable=False),
     sa.Column('filetype', sa.String(length=20), nullable=False),
+    sa.Column('storage_path', sa.String(length=500), nullable=True),
     sa.Column('status', sa.String(length=20), nullable=False),
     sa.Column('error_message', sa.Text(), nullable=True),
     sa.Column('vector_document_id', sa.String(length=255), nullable=True),
     sa.Column('chunk_count', sa.Integer(), nullable=False),
     sa.Column('started_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
-    sa.ForeignKeyConstraint(['user_id'], ['users.id'], name=op.f('rag_documents_user_id_fkey')),
     sa.PrimaryKeyConstraint('id', name=op.f('rag_documents_pkey'))
     )
     op.create_index(op.f('rag_documents_collection_name_idx'), 'rag_documents', ['collection_name'], unique=False)

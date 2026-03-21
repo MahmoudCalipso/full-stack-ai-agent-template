@@ -53,6 +53,9 @@ class UserRead(UserBase, TimestampSchema):
 {%- endif %}
     is_superuser: bool = False
     role: UserRole = UserRole.USER
+{%- if cookiecutter.enable_oauth %}
+    oauth_provider: str | None = None
+{%- endif %}
 
 
 class UserInDB(UserRead):

@@ -66,3 +66,93 @@ class RAGDocumentList(BaseModel):
 
     items: list[RAGDocumentItem]
     total: int = Field(..., description="Total number of unique documents")
+
+
+class RAGMessageResponse(BaseModel):
+    """Simple message response."""
+
+    message: str
+
+
+class RAGTrackedDocumentItem(BaseModel):
+    """A document tracked in the SQL database."""
+
+    id: str
+    collection_name: str
+    filename: str
+    filesize: int
+    filetype: str
+    status: str
+    error_message: str | None = None
+    vector_document_id: str | None = None
+    chunk_count: int = 0
+    has_file: bool = False
+    created_at: str | None = None
+    completed_at: str | None = None
+
+
+class RAGTrackedDocumentList(BaseModel):
+    """List of tracked RAG documents."""
+
+    items: list[RAGTrackedDocumentItem]
+    total: int
+
+
+class RAGIngestResponse(BaseModel):
+    """Response for document ingestion (async or sync)."""
+
+    id: str
+    status: str
+    filename: str
+    collection: str
+    message: str
+    document_id: str | None = None
+
+
+class RAGRetryResponse(BaseModel):
+    """Response for document retry."""
+
+    id: str
+    status: str
+    message: str
+
+
+class RAGSyncRequest(BaseModel):
+    """Request to trigger a sync operation."""
+
+    collection_name: str = Field("documents", description="Target collection")
+    mode: str = Field("full", description="Sync mode: full, new_only, update_only")
+    path: str = Field("", description="Source path (directory, GDrive folder ID, S3 prefix)")
+
+
+class RAGSyncLogItem(BaseModel):
+    """A sync operation log entry."""
+
+    id: str
+    source: str
+    collection_name: str
+    status: str
+    mode: str
+    total_files: int = 0
+    ingested: int = 0
+    updated: int = 0
+    skipped: int = 0
+    failed: int = 0
+    error_message: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
+
+
+class RAGSyncLogList(BaseModel):
+    """List of sync log entries."""
+
+    items: list[RAGSyncLogItem]
+    total: int
+
+
+class RAGSyncResponse(BaseModel):
+    """Response for sync trigger (202 Accepted)."""
+
+    id: str
+    status: str
+    message: str

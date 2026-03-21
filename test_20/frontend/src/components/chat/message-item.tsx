@@ -6,6 +6,7 @@ import { ToolCallCard } from "./tool-call-card";
 import { MarkdownContent } from "./markdown-content";
 import { CopyButton } from "./copy-button";
 import { User, Bot } from "lucide-react";
+import Image from "next/image";
 import { getFileUrl } from "@/lib/file-api";
 
 interface MessageItemProps {
@@ -66,10 +67,13 @@ export function MessageItem({ message, groupPosition }: MessageItemProps) {
                 rel="noopener noreferrer"
                 className="block overflow-hidden rounded-xl border"
               >
-                <img
+                <Image
                   src={getFileUrl(fileId)}
                   alt="Attached file"
-                  className="max-h-64 max-w-xs object-contain"
+                  width={320}
+                  height={256}
+                  className="h-auto w-auto max-h-64 max-w-xs object-contain"
+                  unoptimized
                   onError={(e) => {
                     // Hide broken images (non-image files)
                     (e.target as HTMLImageElement).style.display = "none";
@@ -82,8 +86,8 @@ export function MessageItem({ message, groupPosition }: MessageItemProps) {
 
         {/* Thinking indicator */}
         {!isUser && message.isStreaming && !message.content && (!message.toolCalls || message.toolCalls.length === 0) && (
-          <div className="bg-muted flex items-center gap-2 rounded-2xl rounded-tl-sm px-4 py-2.5">
-            <div className="flex gap-1">
+          <div className="bg-muted flex items-center gap-2 rounded-2xl rounded-tl-sm px-4 py-2.5" role="status" aria-live="polite">
+            <div className="flex gap-1" aria-hidden="true">
               <span className="bg-muted-foreground/40 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:0ms]" />
               <span className="bg-muted-foreground/40 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:150ms]" />
               <span className="bg-muted-foreground/40 h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:300ms]" />
@@ -113,24 +117,6 @@ export function MessageItem({ message, groupPosition }: MessageItemProps) {
           </div>
         )}
 
-        {/* Copy button — always visible on last assistant message, hover on others */}
-        {!isUser && message.content && !message.isStreaming && (
-          <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100">
-            <CopyButton
-              text={message.content}
-              className="bg-muted hover:bg-muted/80 h-7 w-7 rounded-md"
-            />
-          </div>
-        )}
-        {isUser && message.content && (
-          <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100">
-            <CopyButton
-              text={message.content}
-              className="bg-secondary hover:bg-secondary/80 h-7 w-7 rounded-md"
-            />
-          </div>
-        )}
-
         {message.toolCalls && message.toolCalls.length > 0 && (
           <div className="w-full space-y-2">
             {message.toolCalls.map((toolCall) => (
@@ -139,11 +125,22 @@ export function MessageItem({ message, groupPosition }: MessageItemProps) {
           </div>
         )}
 
-        {/* Timestamp */}
-        {!message.isStreaming && message.timestamp && (
-          <span className="text-muted-foreground text-[10px]">
-            {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          </span>
+        {/* Timestamp + Copy button — inline row */}
+        {!message.isStreaming && message.content && (
+          <div className={cn("flex items-center gap-2", isUser && "flex-row-reverse")}>
+            {message.timestamp && (
+              <span className="text-muted-foreground text-[10px]">
+                {new Date(message.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+            <CopyButton
+              text={message.content}
+              className={cn(
+                "h-6 w-6 rounded-md sm:opacity-0 sm:group-hover:opacity-100",
+                isUser ? "bg-secondary hover:bg-secondary/80" : "bg-muted hover:bg-muted/80"
+              )}
+            />
+          </div>
         )}
       </div>
     </div>

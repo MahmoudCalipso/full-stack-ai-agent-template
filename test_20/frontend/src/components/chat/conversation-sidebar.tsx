@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useConversations } from "@/hooks";
-import { Button } from "@/components/ui";
+import { Button, Skeleton } from "@/components/ui";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui";
 import { cn } from "@/lib/utils";
 import { useChatSidebarStore } from "@/stores";
@@ -189,8 +189,8 @@ function ConversationList({
 
       <div className="scrollbar-thin flex-1 overflow-y-auto px-3 pb-3">
         {isLoading && conversations.length === 0 ? (
-          <div className="text-muted-foreground flex items-center justify-center py-8 text-sm">
-            Loading...
+          <div className="space-y-2 py-2">
+            {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-9 w-full rounded-md" />)}
           </div>
         ) : activeConversations.length === 0 ? (
           <div className="text-muted-foreground flex flex-col items-center justify-center py-8 text-center text-sm">

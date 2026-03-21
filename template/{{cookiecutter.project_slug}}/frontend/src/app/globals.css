@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand accent — change this one value to retheme the entire app */
+  /* Brand accent — change the hue value to retheme the entire app */
   /* Presets: blue 250, green 155, red 25, violet 295, orange 55 */
-  --color-brand: oklch(55% 0.2 250);
-  --color-brand-hover: oklch(62% 0.22 250);
-  --color-brand-muted: oklch(55% 0.1 250);
+  --color-brand: oklch(55% 0.2 {{ cookiecutter.brand_color_hue }});
+  --color-brand-hover: oklch(62% 0.22 {{ cookiecutter.brand_color_hue }});
+  --color-brand-muted: oklch(55% 0.1 {{ cookiecutter.brand_color_hue }});
   --color-brand-foreground: oklch(98% 0 0);
 
   /* Light theme - neutral grays with better contrast */
@@ -391,6 +391,16 @@
     border-color: var(--color-brand);
     box-shadow: 0 4px 12px oklch(0% 0 0 / 0.08);
   }
+}
+
+/* Page transition animation */
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter {
+  animation: page-enter 0.25s ease-out;
 }
 
 @keyframes arrow-float {

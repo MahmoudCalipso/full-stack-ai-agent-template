@@ -60,6 +60,16 @@ class FrontendType(StrEnum):
     NEXTJS = "nextjs"
 
 
+class BrandColorType(StrEnum):
+    """Brand color presets for the frontend theme."""
+
+    BLUE = "blue"
+    GREEN = "green"
+    RED = "red"
+    VIOLET = "violet"
+    ORANGE = "orange"
+
+
 class WebSocketAuthType(StrEnum):
     """WebSocket authentication types for AI Agent."""
 
@@ -169,10 +179,13 @@ class PdfParserType(StrEnum):
              (→ markdown), images, headers/footers detection, OCR fallback.
     LLAMAPARSE: AI-powered cloud extraction. Handles 130+ formats,
                 complex layouts, and scanned documents. Requires API key.
+    LITEPARSE: Fast local AI-native parsing from LlamaIndex. Layout-aware text
+               extraction, built-in OCR via Tesseract.js. Requires Node.js.
     """
 
     PYMUPDF = "pymupdf"  # Local PDF extraction (default)
     LLAMAPARSE = "llamaparse"  # LlamaParse cloud API
+    LITEPARSE = "liteparse"  # LiteParse local AI-native
 
 
 class VectorStoreType(StrEnum):
@@ -277,6 +290,7 @@ class ProjectConfig(BaseModel):
     # Frontend
     frontend: FrontendType = FrontendType.NEXTJS
     frontend_port: int = 3000
+    brand_color: BrandColorType = BrandColorType.BLUE
 
     # Backend
     backend_port: int = 8000
@@ -604,6 +618,14 @@ class ProjectConfig(BaseModel):
             "use_frontend": self.frontend != FrontendType.NONE,
             "use_nextjs": self.frontend == FrontendType.NEXTJS,
             "frontend_port": self.frontend_port,
+            "brand_color": self.brand_color.value,
+            "brand_color_hue": {
+                BrandColorType.BLUE: "250",
+                BrandColorType.GREEN: "155",
+                BrandColorType.RED: "25",
+                BrandColorType.VIOLET: "295",
+                BrandColorType.ORANGE: "55",
+            }[self.brand_color],
             # Backend
             "backend_port": self.backend_port,
             # RAG
@@ -651,6 +673,8 @@ class ProjectConfig(BaseModel):
             else "pymupdf",
             "use_llamaparse": self.rag_features.enable_rag
             and self.rag_features.pdf_parser == PdfParserType.LLAMAPARSE,
+            "use_liteparse": self.rag_features.enable_rag
+            and self.rag_features.pdf_parser == PdfParserType.LITEPARSE,
             "use_python_parser": True,  # Always use Python parser for non-PDF
             "enable_google_drive_ingestion": self.rag_features.enable_google_drive_ingestion
             if self.rag_features.enable_rag

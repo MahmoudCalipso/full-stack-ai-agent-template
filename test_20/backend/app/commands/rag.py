@@ -88,6 +88,7 @@ async def ingest_path_async(
     processor: DocumentProcessor,
     ingestion: IngestionService,
     replace: bool = True,
+    sync_mode: str = "full",
 ) -> None:
     """Ingest files from a path (file or directory).
 
@@ -131,17 +132,77 @@ async def ingest_path_async(
         warning(f"No supported files found. Allowed: {', '.join(allowed_extensions)}")
         return
 
+    import hashlib
+    from datetime import UTC, datetime
+
     from tqdm import tqdm
 
-    info(f"Ingesting {len(files)} file(s) into collection '{collection}'...")
+    from app.db.models.rag_document import RAGDocument
+    from app.db.models.sync_log import SyncLog
+    from app.db.session import get_db_context
+
+    info(f"Syncing {len(files)} file(s) into '{collection}' (mode={sync_mode})...")
 
     success_count = 0
     error_count = 0
     replaced_count = 0
+    skipped_count = 0
 
-    with tqdm(files, unit="file", desc="Ingesting", ncols=80) as pbar:
+    # Create SyncLog
+    async with get_db_context() as db:
+        sync_log = SyncLog(
+            source="local",
+            collection_name=collection,
+            status="running",
+            mode=sync_mode,
+            total_files=len(files),
+        )
+        db.add(sync_log)
+        await db.commit()
+        await db.refresh(sync_log)
+        sync_log_id = sync_log.id
+
+    with tqdm(files, unit="file", desc="Syncing", ncols=80) as pbar:
         for filepath in pbar:
             pbar.set_postfix_str(filepath.name[:30], refresh=True)
+
+            # Sync mode checks
+            source_path = str(filepath.resolve())
+            if sync_mode in ("new_only", "update_only"):
+                existing_id = await ingestion.find_existing(collection, source_path)
+
+                if sync_mode == "new_only" and existing_id:
+                    skipped_count += 1
+                    tqdm.write(f"  ⊘ {filepath.name}: already exists (skipped)")
+                    continue
+
+                if sync_mode == "update_only":
+                    if not existing_id:
+                        skipped_count += 1
+                        tqdm.write(f"  ⊘ {filepath.name}: not in collection (skipped)")
+                        continue
+                    # Compare content hash
+                    file_hash = hashlib.sha256(filepath.read_bytes()).hexdigest()
+                    existing_hash = await ingestion.get_existing_hash(collection, source_path)
+                    if existing_hash and file_hash == existing_hash:
+                        skipped_count += 1
+                        tqdm.write(f"  ⊘ {filepath.name}: unchanged (skipped)")
+                        continue
+
+            # Create RAGDocument record in SQL
+            async with get_db_context() as db:
+                rag_doc = RAGDocument(
+                    collection_name=collection,
+                    filename=filepath.name,
+                    filesize=filepath.stat().st_size,
+                    filetype=filepath.suffix.lstrip(".").lower(),
+                    status="processing",
+                )
+                db.add(rag_doc)
+                await db.commit()
+                await db.refresh(rag_doc)
+                doc_id = rag_doc.id
+
             try:
                 result = await ingestion.ingest_file(
                     filepath=filepath, collection_name=collection, replace=replace
@@ -150,17 +211,52 @@ async def ingest_path_async(
                     success_count += 1
                     if result.message and "replaced" in result.message:
                         replaced_count += 1
+                    async with get_db_context() as db:
+                        rag_doc = await db.get(RAGDocument, doc_id)
+                        if rag_doc:
+                            rag_doc.status = "done"
+                            rag_doc.vector_document_id = result.document_id
+                            rag_doc.completed_at = datetime.now(UTC)
+                            await db.commit()
                 else:
                     error_count += 1
                     tqdm.write(f"  ✗ {filepath.name}: {result.error_message}")
+                    async with get_db_context() as db:
+                        rag_doc = await db.get(RAGDocument, doc_id)
+                        if rag_doc:
+                            rag_doc.status = "error"
+                            rag_doc.error_message = result.error_message
+                            rag_doc.completed_at = datetime.now(UTC)
+                            await db.commit()
             except Exception as e:
                 error_count += 1
                 tqdm.write(f"  ✗ {filepath.name}: {e!s}")
+                async with get_db_context() as db:
+                    rag_doc = await db.get(RAGDocument, doc_id)
+                    if rag_doc:
+                        rag_doc.status = "error"
+                        rag_doc.error_message = str(e)
+                        rag_doc.completed_at = datetime.now(UTC)
+                        await db.commit()
+
+    # Update SyncLog with results
+    async with get_db_context() as db:
+        sync_log = await db.get(SyncLog, sync_log_id)
+        if sync_log:
+            sync_log.status = "done" if error_count == 0 else "error"
+            sync_log.ingested = success_count - replaced_count
+            sync_log.updated = replaced_count
+            sync_log.skipped = skipped_count
+            sync_log.failed = error_count
+            sync_log.completed_at = datetime.now(UTC)
+            await db.commit()
 
     click.echo()
-    msg = f"Ingested: {success_count} files"
+    msg = f"Done: {success_count} ingested"
     if replaced_count > 0:
-        msg += f" ({replaced_count} replaced)"
+        msg += f" ({replaced_count} updated)"
+    if skipped_count > 0:
+        msg += f", {skipped_count} skipped"
     success(msg)
     if error_count > 0:
         error(f"Failed: {error_count} files")
@@ -185,7 +281,13 @@ async def ingest_path_async(
     default=True,
     help="Replace existing documents with same source path (default: True)",
 )
-def rag_ingest(path: str, collection: str, recursive: bool, replace: bool):
+@click.option(
+    "--sync-mode",
+    type=click.Choice(["full", "new_only", "update_only"]),
+    default="full",
+    help="Sync mode: full (add+update), new_only (skip existing), update_only (skip unchanged)",
+)
+def rag_ingest(path: str, collection: str, recursive: bool, replace: bool, sync_mode: str):
     """
     Ingest a file or directory into the knowledge base.
 
@@ -194,10 +296,12 @@ def rag_ingest(path: str, collection: str, recursive: bool, replace: bool):
     Example:
         project cmd rag-ingest ./docs
         project cmd rag-ingest ./docs --collection my_docs --recursive
+        project cmd rag-ingest ./docs --sync-mode new_only
+        project cmd rag-ingest ./docs --sync-mode update_only
     """
     _, vector_store, processor, _, ingestion = get_rag_services()
     asyncio.run(
-        ingest_path_async(path, collection, recursive, vector_store, processor, ingestion, replace)
+        ingest_path_async(path, collection, recursive, vector_store, processor, ingestion, replace, sync_mode)
     )
 
 

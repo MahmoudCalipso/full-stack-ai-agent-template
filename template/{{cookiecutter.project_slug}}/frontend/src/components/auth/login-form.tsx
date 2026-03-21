@@ -11,6 +11,8 @@ import { ROUTES } from "@/lib/constants";
 import { GoogleIcon } from "@/components/icons/google-icon";
 {%- endif %}
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function LoginForm() {
   const { login } = useAuth();
   const [email, setEmail] = useState("");
@@ -20,6 +22,9 @@ export function LoginForm() {
 {%- if cookiecutter.enable_oauth_google %}
   const [isOAuthLoading, setIsOAuthLoading] = useState(false);
 {%- endif %}
+  const [emailTouched, setEmailTouched] = useState(false);
+
+  const emailValid = !email || EMAIL_RE.test(email);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,9 +66,14 @@ export function LoginForm() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onBlur={() => setEmailTouched(true)}
               required
               disabled={isLoading}
+              className={emailTouched && email && !emailValid ? "border-destructive" : ""}
             />
+            {emailTouched && email && !emailValid && (
+              <p className="text-destructive text-xs">Please enter a valid email address</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>

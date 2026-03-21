@@ -60,6 +60,10 @@ class BaseFileStorage(ABC):
     async def delete(self, storage_path: str) -> None:
         """Delete file by storage path."""
 
+    def get_full_path(self, storage_path: str) -> Path | None:
+        """Return absolute filesystem path if available (local storage only)."""
+        return None  # pragma: no cover
+
 
 class LocalFileStorage(BaseFileStorage):
     """Store files on local filesystem."""
@@ -89,6 +93,11 @@ class LocalFileStorage(BaseFileStorage):
         file_path = self.base_dir / storage_path
         if file_path.exists():
             file_path.unlink()
+
+    def get_full_path(self, storage_path: str) -> Path | None:
+        """Return absolute filesystem path for local files."""
+        file_path = self.base_dir / storage_path
+        return file_path if file_path.exists() else None
 
 
 def get_file_storage() -> BaseFileStorage:

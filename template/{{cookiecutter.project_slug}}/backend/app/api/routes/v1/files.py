@@ -7,7 +7,7 @@ from uuid import UUID
 {%- endif %}
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, status
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from sqlalchemy import select
 
 from app.api.deps import DBSession, CurrentUser
@@ -154,13 +154,11 @@ async def download_file(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
     storage = get_file_storage()
-    data = await storage.load(chat_file.storage_path)
+    file_path = storage.get_full_path(chat_file.storage_path)
+    if not file_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found on disk")
 
-    return Response(
-        content=data,
-        media_type=chat_file.mime_type,
-        headers={"Content-Disposition": f'inline; filename="{chat_file.filename}"'},
-    )
+    return FileResponse(path=file_path, filename=chat_file.filename, media_type=chat_file.mime_type)
 
 
 @router.get("/{file_id}/info", response_model=FileInfo)

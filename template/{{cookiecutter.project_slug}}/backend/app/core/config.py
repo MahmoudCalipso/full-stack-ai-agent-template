@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "local", "staging", "production"] = "local"
     MODELS_CACHE_DIR: Path = Path("./models_cache")
     MEDIA_DIR: Path = Path("./media")
+    MAX_UPLOAD_SIZE_MB: int = 50  # Max file upload size in MB
 
 {%- if cookiecutter.enable_logfire %}
 

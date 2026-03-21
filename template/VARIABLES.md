@@ -206,8 +206,9 @@ These variables are set automatically by the generator.
 | `enable_reranker` | bool | `false` | Enable reranker for search results (set via `--reranker` CLI flag) | Computed from `--reranker` CLI flag |
 | `use_cohere_reranker` | bool | `false` | Cohere reranker is selected | Computed from `--reranker` CLI flag |
 | `use_cross_encoder_reranker` | bool | `false` | Cross-encoder reranker (sentence-transformers) is selected | Computed from `--reranker` CLI flag |
-| `pdf_parser` | enum | `"pymupdf"` | PDF parsing method. Values: `pymupdf`, `llamaparse` | Requires RAG |
-| `use_llamaparse` | bool | `false` | LlamaParse (LLM-based) is selected for PDF parsing | Computed from `pdf_parser` |
+| `pdf_parser` | enum | `"pymupdf"` | PDF parsing method. Values: `pymupdf`, `liteparse`, `llamaparse` | Requires RAG |
+| `use_llamaparse` | bool | `false` | LlamaParse (cloud AI) is selected for PDF parsing | Computed from `pdf_parser` |
+| `use_liteparse` | bool | `false` | LiteParse (local AI-native) is selected for PDF parsing | Computed from `pdf_parser` |
 | `use_python_parser` | bool | `true` | Python-based parsing is selected (always true for non-PDF) | Always true |
 | `enable_google_drive_ingestion` | bool | `false` | Enable Google Drive as document source | Requires RAG |
 | `enable_s3_ingestion` | bool | `false` | Enable S3/MinIO as document source | Requires RAG |
@@ -312,6 +313,8 @@ These variables are set automatically by the generator.
 | `use_frontend` | bool | `false` | Any frontend is enabled | Computed from `frontend` |
 | `use_nextjs` | bool | `false` | Next.js is selected | Computed from `frontend` |
 | `frontend_port` | int | `3000` | Port for frontend development server | Requires frontend |
+| `brand_color` | string | `"blue"` | Brand color preset (blue, green, red, violet, orange) | Requires frontend |
+| `brand_color_hue` | string | `"250"` | oklch hue value for the brand color | Computed from `brand_color` |
 | `backend_port` | int | `8000` | Port for backend server | - |
 
 ---

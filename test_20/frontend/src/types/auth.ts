@@ -9,6 +9,22 @@ export interface User {
   is_active: boolean;
   is_superuser?: boolean;
   created_at: string;
+  oauth_provider?: string | null;
+}
+
+export interface Session {
+  id: string;
+  device_name?: string | null;
+  device_type?: string | null;
+  ip_address?: string | null;
+  is_current: boolean;
+  created_at: string;
+  last_used_at: string;
+}
+
+export interface SessionListResponse {
+  sessions: Session[];
+  total: number;
 }
 
 export interface LoginRequest {

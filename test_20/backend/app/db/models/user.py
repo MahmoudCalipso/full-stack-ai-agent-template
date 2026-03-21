@@ -43,8 +43,8 @@ class User(TimestampMixin, SQLModel, table=True):
     is_active: bool = Field(default=True)
     is_superuser: bool = Field(default=False)
     role: str = Field(default=UserRole.USER.value, max_length=50)
-    oauth_provider: str | None = Field(default=None, max_length=50)
-    oauth_id: str | None = Field(default=None, max_length=255)
+    oauth_provider: str | None = Field(default=None, sa_column=Column(String(50), nullable=True, index=True))
+    oauth_id: str | None = Field(default=None, sa_column=Column(String(255), nullable=True, index=True))
 
     # Relationship to sessions
     sessions: list["Session"] = Relationship(back_populates="user")

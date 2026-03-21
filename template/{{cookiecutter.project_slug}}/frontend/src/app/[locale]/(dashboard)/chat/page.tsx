@@ -10,7 +10,7 @@ export default function ChatPage() {
   const Sidebar = isAuthenticated ? ConversationSidebar : LocalConversationSidebar;
 
   return (
-    <div className="flex h-full -m-3 sm:-m-6">
+    <div className="flex min-h-0 flex-1 -m-3 sm:-m-6">
       <Sidebar />
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="flex items-center gap-2 p-2 border-b md:hidden">
@@ -31,7 +31,7 @@ import { ChatContainer, LocalConversationSidebar, ChatSidebarToggle } from "@/co
 
 export default function ChatPage() {
   return (
-    <div className="flex h-full -m-3 sm:-m-6">
+    <div className="flex min-h-0 flex-1 -m-3 sm:-m-6">
       <LocalConversationSidebar />
       <div className="flex-1 min-w-0 flex flex-col">
         <div className="flex items-center gap-2 p-2 border-b md:hidden">

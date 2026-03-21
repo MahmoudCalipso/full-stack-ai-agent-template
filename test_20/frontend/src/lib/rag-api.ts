@@ -136,6 +136,39 @@ export async function listDocuments(collectionName: string): Promise<RAGDocument
   return apiClient.get<RAGDocumentList>(RAG_API_ROUTES.COLLECTIONS_DOCUMENTS(collectionName));
 }
 
+// Sync types and functions
+export interface RAGSyncLog {
+  id: string;
+  source: string;
+  collection_name: string;
+  status: string;
+  mode: string;
+  total_files: number;
+  ingested: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  error_message: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+export interface RAGSyncLogList {
+  items: RAGSyncLog[];
+  total: number;
+}
+
+export async function listSyncLogs(collectionName?: string, limit = 20): Promise<RAGSyncLogList> {
+  const params = new URLSearchParams();
+  if (collectionName) params.set("collection_name", collectionName);
+  params.set("limit", String(limit));
+  return apiClient.get<RAGSyncLogList>(`/v1/rag/sync/logs?${params}`);
+}
+
+export async function triggerSync(collectionName: string, mode: string, path: string): Promise<{ id: string; status: string; message: string }> {
+  return apiClient.post("/v1/rag/sync/local", { collection_name: collectionName, mode, path });
+}
+
 export async function ingestFile(collectionName: string, file: File, replace = false): Promise<RAGIngestResult> {
   const formData = new FormData();
   formData.append("file", file);

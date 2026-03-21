@@ -23,6 +23,7 @@ from app.core.config import settings
 {%- if cookiecutter.enable_logfire %}
 from app.core.logfire_setup import instrument_app, setup_logfire
 {%- endif %}
+from app.core.logging import setup_logging
 from app.core.middleware import RequestIDMiddleware
 
 {%- if cookiecutter.enable_redis or cookiecutter.enable_rag %}
@@ -282,6 +283,9 @@ def create_app() -> FastAPI:
         },
 {%- endif %}
     ]
+
+    # PII redaction in logs (GDPR/compliance)
+    setup_logging()
 
     app = FastAPI(
         title=settings.PROJECT_NAME,

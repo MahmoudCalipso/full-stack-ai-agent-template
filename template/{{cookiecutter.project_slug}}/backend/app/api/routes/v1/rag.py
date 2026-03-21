@@ -10,6 +10,9 @@ from uuid import UUID
 {%- endif %}
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, status
+{%- if cookiecutter.use_celery %}
+from fastapi.responses import JSONResponse
+{%- endif %}
 {%- if cookiecutter.enable_conversation_persistence and (cookiecutter.use_postgresql or cookiecutter.use_sqlite) %}
 from sqlalchemy import select
 {%- endif %}
@@ -27,10 +30,16 @@ from app.schemas.rag import (
     RAGCollectionList,
     RAGDocumentItem,
     RAGDocumentList,
+    RAGMessageResponse,
     RAGSearchRequest,
     RAGSearchResponse,
     RAGSearchResult,
 )
+{%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_postgresql %}
+from app.schemas.rag import RAGIngestResponse, RAGRetryResponse, RAGTrackedDocumentItem, RAGTrackedDocumentList
+from app.schemas.rag import RAGSyncLogItem, RAGSyncLogList, RAGSyncRequest, RAGSyncResponse
+from app.db.models.sync_log import SyncLog
+{%- endif %}
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +58,7 @@ async def list_collections(
     return RAGCollectionList(items=names)
 
 
-@router.post("/collections/{name}", status_code=status.HTTP_201_CREATED)
+@router.post("/collections/{name}", status_code=status.HTTP_201_CREATED, response_model=RAGMessageResponse)
 async def create_collection(
     name: str,
     vector_store: VectorStoreSvc,
@@ -59,7 +68,7 @@ async def create_collection(
 ):
     """Create and initialize a new collection."""
     await vector_store._ensure_collection(name)
-    return {"message": f"Collection '{name}' created successfully."}
+    return RAGMessageResponse(message=f"Collection '{name}' created successfully.")
 
 
 @router.delete("/collections/{name}", status_code=status.HTTP_204_NO_CONTENT)
@@ -164,7 +173,7 @@ async def delete_document(
 
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_postgresql %}
 
-@router.post("/collections/{name}/ingest")
+@router.post("/collections/{name}/ingest", response_model=RAGIngestResponse, response_model_exclude_none=True)
 async def ingest_file(
     name: str,
     file: UploadFile = File(...),
@@ -177,8 +186,9 @@ async def ingest_file(
     replace: bool = Query(False),
 ):
     """Upload and ingest a file into a collection. Tracks status in DB."""
+    from app.core.config import settings as app_settings
     ALLOWED = {".pdf", ".docx", ".txt", ".md"}
-    MAX_SIZE = 50 * 1024 * 1024
+    max_size = app_settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
     filename = file.filename or "unknown"
     ext = Path(filename).suffix.lower()
@@ -186,17 +196,14 @@ async def ingest_file(
         raise HTTPException(status_code=400, detail=f"File type '{ext}' not supported.")
 
     data = await file.read()
-    if len(data) > MAX_SIZE:
-        raise HTTPException(status_code=413, detail="File too large. Maximum 50MB.")
+    if len(data) > max_size:
+        raise HTTPException(status_code=413, detail=f"File too large. Maximum {app_settings.MAX_UPLOAD_SIZE_MB}MB.")
 
     from app.services.file_storage import get_file_storage
     storage = get_file_storage()
     storage_path = await storage.save(f"rag/{name}", filename, data)
 
     rag_doc = RAGDocument(
-{%- if cookiecutter.use_jwt %}
-        user_id=current_user.id,
-{%- endif %}
         collection_name=name,
         filename=filename,
         filesize=len(data),
@@ -211,6 +218,37 @@ async def ingest_file(
     doc_id = rag_doc.id
 
     await vector_store._ensure_collection(name)
+{%- if cookiecutter.use_celery %}
+
+    # Save to temp file for Celery worker
+    import os
+    tmp_dir = os.path.join(tempfile.gettempdir(), "rag_ingest")
+    os.makedirs(tmp_dir, exist_ok=True)
+    tmp_path = os.path.join(tmp_dir, f"{str(doc_id)}{ext}")
+    with open(tmp_path, "wb") as f:
+        f.write(data)
+
+    # Dispatch async Celery task
+    from app.worker.tasks.rag_tasks import ingest_document_task
+    ingest_document_task.delay(
+        rag_document_id=str(doc_id),
+        collection_name=name,
+        filepath=tmp_path,
+        source_path=filename,
+        replace=replace,
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        content={
+            "id": str(doc_id),
+            "status": "processing",
+            "filename": filename,
+            "collection": name,
+            "message": "File accepted. Processing in background.",
+        },
+    )
+{%- else %}
 
     with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
         tmp.write(data)
@@ -242,9 +280,10 @@ async def ingest_file(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         tmp_path.unlink(missing_ok=True)
+{%- endif %}
 
 
-@router.get("/documents")
+@router.get("/documents", response_model=RAGTrackedDocumentList)
 async def list_rag_documents(
     db: DBSession = None,
 {%- if cookiecutter.use_jwt %}
@@ -253,30 +292,26 @@ async def list_rag_documents(
     collection_name: str | None = Query(None),
 ):
     """List tracked RAG documents."""
-{%- if cookiecutter.use_jwt %}
-    query = select(RAGDocument).where(RAGDocument.user_id == current_user.id)
-{%- else %}
     query = select(RAGDocument)
-{%- endif %}
     if collection_name:
         query = query.where(RAGDocument.collection_name == collection_name)
     query = query.order_by(RAGDocument.created_at.desc())
     result = await db.execute(query)
     docs = result.scalars().all()
-    return {
-        "items": [
-            {
-                "id": str(d.id), "collection_name": d.collection_name, "filename": d.filename,
-                "filesize": d.filesize, "filetype": d.filetype, "status": d.status,
-                "error_message": d.error_message, "vector_document_id": d.vector_document_id,
-                "chunk_count": d.chunk_count, "has_file": bool(d.storage_path),
-                "created_at": d.created_at.isoformat() if d.created_at else None,
-                "completed_at": d.completed_at.isoformat() if d.completed_at else None,
-            }
+    return RAGTrackedDocumentList(
+        items=[
+            RAGTrackedDocumentItem(
+                id=str(d.id), collection_name=d.collection_name, filename=d.filename,
+                filesize=d.filesize, filetype=d.filetype, status=d.status,
+                error_message=d.error_message, vector_document_id=d.vector_document_id,
+                chunk_count=d.chunk_count, has_file=bool(d.storage_path),
+                created_at=d.created_at.isoformat() if d.created_at else None,
+                completed_at=d.completed_at.isoformat() if d.completed_at else None,
+            )
             for d in docs
         ],
-        "total": len(docs),
-    }
+        total=len(docs),
+    )
 
 
 @router.get("/documents/{doc_id}/download")
@@ -288,28 +323,22 @@ async def download_rag_document(
 {%- endif %}
 ):
     """Download the original file."""
-    from fastapi.responses import Response
+    from fastapi.responses import FileResponse
     from app.services.file_storage import get_file_storage
 
     rag_doc = await db.get(RAGDocument, UUID(doc_id))
-{%- if cookiecutter.use_jwt %}
-    if not rag_doc or rag_doc.user_id != current_user.id:
-{%- else %}
     if not rag_doc:
-{%- endif %}
         raise HTTPException(status_code=404, detail="Document not found")
     if not rag_doc.storage_path:
         raise HTTPException(status_code=404, detail="Original file not available")
 
     storage = get_file_storage()
-    try:
-        file_data = await storage.load(rag_doc.storage_path)
-    except FileNotFoundError:
+    file_path = storage.get_full_path(rag_doc.storage_path)
+    if not file_path:
         raise HTTPException(status_code=404, detail="File not found on disk")
 
     mime_map = {"pdf": "application/pdf", "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "txt": "text/plain", "md": "text/markdown"}
-    return Response(content=file_data, media_type=mime_map.get(rag_doc.filetype, "application/octet-stream"),
-        headers={"Content-Disposition": f'inline; filename="{rag_doc.filename}"'})
+    return FileResponse(path=file_path, filename=rag_doc.filename, media_type=mime_map.get(rag_doc.filetype, "application/octet-stream"))
 
 
 @router.delete("/documents/{doc_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -325,11 +354,7 @@ async def delete_rag_document(
     from app.services.file_storage import get_file_storage
 
     rag_doc = await db.get(RAGDocument, UUID(doc_id))
-{%- if cookiecutter.use_jwt %}
-    if not rag_doc or rag_doc.user_id != current_user.id:
-{%- else %}
     if not rag_doc:
-{%- endif %}
         raise HTTPException(status_code=404, detail="Document not found")
 
     if rag_doc.vector_document_id:
@@ -347,6 +372,137 @@ async def delete_rag_document(
 
     await db.delete(rag_doc)
     await db.commit()
+
+{%- if cookiecutter.use_celery %}
+
+
+@router.post("/documents/{doc_id}/retry", response_model=RAGRetryResponse)
+async def retry_ingestion(
+    doc_id: str,
+    db: DBSession = None,
+{%- if cookiecutter.use_jwt %}
+    current_user: CurrentUser = None,
+{%- endif %}
+):
+    """Retry a failed document ingestion."""
+    rag_doc = await db.get(RAGDocument, UUID(doc_id))
+    if not rag_doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if rag_doc.status != "error":
+        raise HTTPException(status_code=400, detail="Only failed documents can be retried")
+
+    # Reset status
+    rag_doc.status = "processing"
+    rag_doc.error_message = None
+    rag_doc.completed_at = None
+    await db.commit()
+
+    return RAGRetryResponse(id=str(rag_doc.id), status="processing", message="Retry queued")
+
+
+@router.get("/sync/logs", response_model=RAGSyncLogList)
+async def list_sync_logs(
+    db: DBSession = None,
+{%- if cookiecutter.use_jwt %}
+    current_user: CurrentUser = None,
+{%- endif %}
+    collection_name: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """List sync operation logs."""
+    query = select(SyncLog)
+    if collection_name:
+        query = query.where(SyncLog.collection_name == collection_name)
+    query = query.order_by(SyncLog.created_at.desc()).limit(limit)
+    result = await db.execute(query)
+    logs = result.scalars().all()
+    return RAGSyncLogList(
+        items=[
+            RAGSyncLogItem(
+                id=str(log.id), source=log.source, collection_name=log.collection_name,
+                status=log.status, mode=log.mode, total_files=log.total_files,
+                ingested=log.ingested, updated=log.updated, skipped=log.skipped, failed=log.failed,
+                error_message=log.error_message,
+                started_at=log.started_at.isoformat() if log.started_at else None,
+                completed_at=log.completed_at.isoformat() if log.completed_at else None,
+            )
+            for log in logs
+        ],
+        total=len(logs),
+    )
+
+{%- if cookiecutter.use_celery %}
+
+
+@router.post("/sync/local", response_model=RAGSyncResponse)
+async def trigger_local_sync(
+    request: RAGSyncRequest,
+    db: DBSession = None,
+{%- if cookiecutter.use_jwt %}
+    current_user: CurrentUser = None,
+{%- endif %}
+):
+    """Trigger a local directory sync via Celery task."""
+    from app.worker.tasks.rag_tasks import sync_collection_task
+
+    sync_log = SyncLog(source="local", collection_name=request.collection_name, status="running", mode=request.mode)
+    db.add(sync_log)
+    await db.commit()
+    await db.refresh(sync_log)
+
+    sync_collection_task.delay(
+        sync_log_id=str(sync_log.id), source="local",
+        collection_name=request.collection_name, mode=request.mode, path=request.path,
+    )
+
+    return RAGSyncResponse(id=str(sync_log.id), status="running", message=f"Sync started for '{request.collection_name}' (mode={request.mode})")
+{%- endif %}
+{%- endif %}
+
+{%- if cookiecutter.use_celery and cookiecutter.enable_redis %}
+
+
+# SSE for RAG status updates (auto-reconnect via EventSource API)
+import json
+from collections.abc import AsyncIterable
+
+from fastapi.sse import EventSourceResponse, ServerSentEvent
+
+
+@router.get("/status/stream", response_class=EventSourceResponse)
+async def rag_status_stream() -> AsyncIterable[ServerSentEvent]:
+    """SSE endpoint for real-time RAG ingestion status updates.
+
+    Subscribes to Redis pub/sub channel 'rag_status' and streams events.
+    Browser auto-reconnects via EventSource API.
+    """
+    import asyncio
+
+    import redis.asyncio as aioredis
+    from app.core.config import settings
+
+    r = aioredis.from_url(f"redis://{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}")
+    pubsub = r.pubsub()
+    await pubsub.subscribe("rag_status")
+    event_id = 0
+
+    try:
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                data = message["data"].decode() if isinstance(message["data"], bytes) else message["data"]
+                event_id += 1
+                yield ServerSentEvent(raw_data=data, event="status", id=str(event_id))
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        logger.warning(f"RAG SSE error: {e}")
+    finally:
+        try:
+            await pubsub.unsubscribe("rag_status")
+            await r.aclose()
+        except Exception:
+            pass
+{%- endif %}
 {%- endif %}
 
 {%- else %}

@@ -5,7 +5,9 @@ import { useChat, useLocalChat } from "@/hooks";
 import { MessageList } from "./message-list";
 import { ChatInput } from "./chat-input";
 import { ToolApprovalDialog } from "./tool-approval-dialog";
-import { Bot } from "lucide-react";
+import { useState as useModelState } from "react";
+import { Bot, ChevronDown, Check } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui";
 import type { PendingApproval, Decision } from "@/types";
 {%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_database %}
 import { useConversationStore, useChatStore, useAuthStore } from "@/stores";
@@ -47,6 +49,7 @@ function AuthenticatedChatContainer() {
     disconnect,
     sendMessage,
     clearMessages,
+    setModel,
     pendingApproval,
     sendResumeDecisions,
   } = useChat({
@@ -122,7 +125,7 @@ function AuthenticatedChatContainer() {
       isConnected={isConnected}
       isProcessing={isProcessing}
       sendMessage={sendMessage}
-
+      onModelChange={setModel}
       messagesEndRef={messagesEndRef}
       pendingApproval={pendingApproval}
       onResumeDecisions={sendResumeDecisions}
@@ -175,14 +178,40 @@ export function ChatContainer() {
 }
 {%- endif %}
 
+const AVAILABLE_MODELS = [
+  { value: "", label: "Default" },
+  { value: "{{ cookiecutter.llm_provider }}/{{ cookiecutter.ai_framework }}", label: "Default Model" },
+];
+
+function ModelSelector({ models, onChange }: { models: typeof AVAILABLE_MODELS; onChange: (model: string | null) => void }) {
+  const [selected, setSelected] = useModelState(models[0]);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium transition-colors">
+          {selected.label}
+          <ChevronDown className="h-3 w-3" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        {models.map((m) => (
+          <DropdownMenuItem key={m.value} onClick={() => { setSelected(m); onChange(m.value || null); }} className="flex items-center justify-between text-xs">
+            {m.label}
+            {selected.value === m.value && <Check className="h-3.5 w-3.5" />}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 interface ChatUIProps {
   messages: import("@/types").ChatMessage[];
   isConnected: boolean;
   isProcessing: boolean;
   sendMessage: (content: string, fileIds?: string[]) => void;
-
+  onModelChange?: (model: string | null) => void;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
-  // Human-in-the-Loop support
   pendingApproval?: PendingApproval | null;
   onResumeDecisions?: (decisions: Decision[]) => void;
 }
@@ -192,6 +221,7 @@ function ChatUI({
   isConnected,
   isProcessing,
   sendMessage,
+  onModelChange,
   messagesEndRef,
   pendingApproval,
   onResumeDecisions,
@@ -228,23 +258,24 @@ function ChatUI({
       )}
 
       <div className="px-2 pb-2 sm:px-4 sm:pb-4">
-        <div className="rounded-xl border bg-card shadow-sm p-3 sm:p-4">
-          {/* Status bar with model selector */}
-          <div className="mb-2 flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
+        <div className="rounded-xl border bg-card shadow-sm">
+          <div className="px-3 pt-3 sm:px-4 sm:pt-4">
+            <ChatInput
+              onSend={sendMessage}
+              disabled={!isConnected || !!pendingApproval}
+              isProcessing={isProcessing}
+            />
+          </div>
+          <div className="flex items-center justify-between px-3 pb-2 sm:px-4 sm:pb-3">
+            <div className="flex items-center gap-1">
               <span
                 className={`inline-block h-1.5 w-1.5 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
               />
-              <span className="text-muted-foreground text-[11px]">
-                {isConnected ? "Connected" : "Disconnected"}
-              </span>
             </div>
+            {onModelChange && (
+              <ModelSelector models={AVAILABLE_MODELS} onChange={onModelChange} />
+            )}
           </div>
-          <ChatInput
-            onSend={sendMessage}
-            disabled={!isConnected || !!pendingApproval}
-            isProcessing={isProcessing}
-          />
         </div>
       </div>
     </div>

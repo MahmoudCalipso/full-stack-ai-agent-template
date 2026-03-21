@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button, Badge } from "@/components/ui";
 import { Send, Loader2, Mic, MicOff, Paperclip, X, Image as ImageIcon, FileText } from "lucide-react";
+import Image from "next/image";
 import { toast } from "sonner";
 import { uploadFile, getFileUrl, type FileUploadResponse } from "@/lib/file-api";
 
@@ -113,9 +114,10 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
       if (!files || files.length === 0) return;
       e.target.value = "";
 
+      const maxMb = parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB || "50", 10);
       for (const file of Array.from(files)) {
-        if (file.size > 10 * 1024 * 1024) {
-          toast.error(`${file.name}: File too large. Maximum 10MB.`);
+        if (file.size > maxMb * 1024 * 1024) {
+          toast.error(`${file.name}: File too large. Maximum ${maxMb}MB.`);
           continue;
         }
 
@@ -147,10 +149,12 @@ export function ChatInput({ onSend, disabled, isProcessing }: ChatInputProps) {
             <div key={file.id} className="relative">
               {file.file_type === "image" ? (
                 <div className="group relative h-16 w-16 overflow-hidden rounded-lg border">
-                  <img
+                  <Image
                     src={getFileUrl(file.id)}
                     alt={file.filename}
-                    className="h-full w-full object-cover"
+                    fill
+                    className="object-cover"
+                    unoptimized
                   />
                   <button
                     type="button"

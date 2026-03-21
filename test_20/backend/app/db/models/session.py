@@ -22,6 +22,7 @@ class Session(SQLModel, table=True):
             PG_UUID(as_uuid=True),
             ForeignKey("users.id", ondelete="CASCADE"),
             nullable=False,
+            index=True,
         ),
     )
     refresh_token_hash: str = Field(

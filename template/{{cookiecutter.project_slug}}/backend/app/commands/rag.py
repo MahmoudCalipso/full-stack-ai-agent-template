@@ -35,14 +35,14 @@ from app.rag.vectorstore import PgVectorStore
 
 def get_rag_services() -> tuple[RAGSettings, BaseVectorStore, DocumentProcessor, RetrievalService, IngestionService]:
     """Initialize RAG services for CLI usage.
-    
+
     Creates and returns all necessary RAG service components:
     - Settings (RAG configuration)
     - Vector store (Milvus)
     - Document processor
     - Retrieval service
     - Ingestion service
-    
+
     Returns:
         Tuple of (settings, vector_store, processor, retrieval, ingestion) services.
     """
@@ -65,18 +65,18 @@ def get_rag_services() -> tuple[RAGSettings, BaseVectorStore, DocumentProcessor,
 
 async def list_collections_async(vector_store: BaseVectorStore) -> None:
     """List all collections with their stats.
-    
+
     Args:
         vector_store: The Milvus vector store to query.
     """
     collection_names = await vector_store.list_collections()
-    
+
     if not collection_names:
         info("No collections found.")
         return
-    
+
     click.echo(f"\nFound {len(collection_names)} collection(s):\n")
-    
+
     for name in collection_names:
         try:
             info_obj = await vector_store.get_collection_info(name)
@@ -104,9 +104,10 @@ async def ingest_path_async(
     processor: DocumentProcessor,
     ingestion: IngestionService,
     replace: bool = True,
+    sync_mode: str = "full",
 ) -> None:
     """Ingest files from a path (file or directory).
-    
+
     Args:
         path: Path to a file or directory to ingest.
         collection: Target collection name.
@@ -116,11 +117,11 @@ async def ingest_path_async(
         ingestion: Ingestion service for storing documents.
     """
     target_path = Path(path).resolve()
-    
+
     if not target_path.exists():
         error(f"Path does not exist: {target_path}")
         return
-    
+
     # Collect files to process
     if target_path.is_file():
         files = [target_path]
@@ -134,47 +135,143 @@ async def ingest_path_async(
     else:
         error(f"Invalid path: {target_path}")
         return
-    
+
     if not files:
         warning("No files found to ingest.")
         return
-    
+
     # Filter by allowed extensions
     allowed_extensions = {ext.value for ext in DocumentExtensions}
     files = [f for f in files if f.suffix.lower() in allowed_extensions]
-    
+
     if not files:
         warning(f"No supported files found. Allowed: {', '.join(allowed_extensions)}")
         return
-    
+
+    import hashlib
+{%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_postgresql %}
+    from datetime import UTC, datetime
+
+    from app.db.models.rag_document import RAGDocument
+    from app.db.models.sync_log import SyncLog
+    from app.db.session import get_db_context
+{%- endif %}
     from tqdm import tqdm
 
-    info(f"Ingesting {len(files)} file(s) into collection '{collection}'...")
+    info(f"Syncing {len(files)} file(s) into '{collection}' (mode={sync_mode})...")
 
     success_count = 0
     error_count = 0
     replaced_count = 0
+    skipped_count = 0
 
-    with tqdm(files, unit="file", desc="Ingesting", ncols=80) as pbar:
+{%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_postgresql %}
+    # Create SyncLog
+    async with get_db_context() as db:
+        sync_log = SyncLog(source="local", collection_name=collection, status="running", mode=sync_mode, total_files=len(files))
+        db.add(sync_log)
+        await db.commit()
+        await db.refresh(sync_log)
+        sync_log_id = sync_log.id
+{%- endif %}
+
+    with tqdm(files, unit="file", desc="Syncing", ncols=80) as pbar:
         for filepath in pbar:
             pbar.set_postfix_str(filepath.name[:30], refresh=True)
+
+            # Sync mode checks
+            source_path = str(filepath.resolve())
+            if sync_mode in ("new_only", "update_only"):
+                existing_id = await ingestion.find_existing(collection, source_path)
+                if sync_mode == "new_only" and existing_id:
+                    skipped_count += 1
+                    continue
+                if sync_mode == "update_only":
+                    if not existing_id:
+                        skipped_count += 1
+                        continue
+                    file_hash = hashlib.sha256(filepath.read_bytes()).hexdigest()
+                    existing_hash = await ingestion.get_existing_hash(collection, source_path)
+                    if existing_hash and file_hash == existing_hash:
+                        skipped_count += 1
+                        continue
+{%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_postgresql %}
+
+            # Create RAGDocument record in SQL
+            async with get_db_context() as db:
+                rag_doc = RAGDocument(
+                    collection_name=collection,
+                    filename=filepath.name,
+                    filesize=filepath.stat().st_size,
+                    filetype=filepath.suffix.lstrip(".").lower(),
+                    status="processing",
+                )
+                db.add(rag_doc)
+                await db.commit()
+                await db.refresh(rag_doc)
+                doc_id = rag_doc.id
+{%- endif %}
+
             try:
                 result = await ingestion.ingest_file(filepath=filepath, collection_name=collection, replace=replace)
                 if result.status.value == "done":
                     success_count += 1
                     if result.message and "replaced" in result.message:
                         replaced_count += 1
+{%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_postgresql %}
+                    async with get_db_context() as db:
+                        rag_doc = await db.get(RAGDocument, doc_id)
+                        if rag_doc:
+                            rag_doc.status = "done"
+                            rag_doc.vector_document_id = result.document_id
+                            rag_doc.completed_at = datetime.now(UTC)
+                            await db.commit()
+{%- endif %}
                 else:
                     error_count += 1
                     tqdm.write(f"  ✗ {filepath.name}: {result.error_message}")
+{%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_postgresql %}
+                    async with get_db_context() as db:
+                        rag_doc = await db.get(RAGDocument, doc_id)
+                        if rag_doc:
+                            rag_doc.status = "error"
+                            rag_doc.error_message = result.error_message
+                            rag_doc.completed_at = datetime.now(UTC)
+                            await db.commit()
+{%- endif %}
             except Exception as e:
                 error_count += 1
                 tqdm.write(f"  ✗ {filepath.name}: {str(e)}")
+{%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_postgresql %}
+                async with get_db_context() as db:
+                    rag_doc = await db.get(RAGDocument, doc_id)
+                    if rag_doc:
+                        rag_doc.status = "error"
+                        rag_doc.error_message = str(e)
+                        rag_doc.completed_at = datetime.now(UTC)
+                        await db.commit()
+{%- endif %}
+
+{%- if cookiecutter.enable_conversation_persistence and cookiecutter.use_postgresql %}
+    # Update SyncLog
+    async with get_db_context() as db:
+        sync_log = await db.get(SyncLog, sync_log_id)
+        if sync_log:
+            sync_log.status = "done" if error_count == 0 else "error"
+            sync_log.ingested = success_count - replaced_count
+            sync_log.updated = replaced_count
+            sync_log.skipped = skipped_count
+            sync_log.failed = error_count
+            sync_log.completed_at = datetime.now(UTC)
+            await db.commit()
+{%- endif %}
 
     click.echo()
-    msg = f"Ingested: {success_count} files"
+    msg = f"Done: {success_count} ingested"
     if replaced_count > 0:
-        msg += f" ({replaced_count} replaced)"
+        msg += f" ({replaced_count} updated)"
+    if skipped_count > 0:
+        msg += f", {skipped_count} skipped"
     success(msg)
     if error_count > 0:
         error(f"Failed: {error_count} files")
@@ -199,19 +296,26 @@ async def ingest_path_async(
     default=True,
     help="Replace existing documents with same source path (default: True)",
 )
-def rag_ingest(path: str, collection: str, recursive: bool, replace: bool):
+@click.option(
+    "--sync-mode",
+    type=click.Choice(["full", "new_only", "update_only"]),
+    default="full",
+    help="Sync mode: full (add+update), new_only (skip existing), update_only (skip unchanged)",
+)
+def rag_ingest(path: str, collection: str, recursive: bool, replace: bool, sync_mode: str):
     """
     Ingest a file or directory into the knowledge base.
-    
+
     PATH: Path to a file or directory to ingest.
-    
+
     Example:
         project cmd rag-ingest ./docs
-        project cmd rag-ingest ./docs --collection my_docs --recursive
+        project cmd rag-ingest ./docs --sync-mode new_only
+        project cmd rag-ingest ./docs --sync-mode update_only
     """
     _, vector_store, processor, _, ingestion = get_rag_services()
     asyncio.run(
-        ingest_path_async(path, collection, recursive, vector_store, processor, ingestion, replace)
+        ingest_path_async(path, collection, recursive, vector_store, processor, ingestion, replace, sync_mode)
     )
 
 
@@ -222,7 +326,7 @@ async def search_async(
     retrieval: RetrievalService,
 ) -> None:
     """Search the knowledge base.
-    
+
     Args:
         query: The search query.
         collection: Target collection name.
@@ -231,26 +335,26 @@ async def search_async(
     """
     info(f"Searching collection '{collection}' for: \"{query}\"")
     click.echo()
-    
+
     results = await retrieval.retrieve(
         query=query,
         collection_name=collection,
         limit=top_k,
     )
-    
+
     if not results:
         warning("No results found.")
         return
-    
+
     for i, result in enumerate(results, 1):
         click.echo(f"--- Result {i} (score: {result.score:.4f}) ---")
-        
+
         # Show source info if available
         if result.metadata:
             filename = result.metadata.get("filename", "Unknown")
             page_num = result.metadata.get("page_num", "?")
             click.echo(f"Source: {filename} (page {page_num})")
-        
+
         # Show content (truncated)
         content = result.content[:500]
         if len(result.content) > 500:
@@ -277,9 +381,9 @@ async def search_async(
 def rag_search(query: str, collection: str, top_k: int):
     """
     Search the knowledge base for relevant content.
-    
+
     QUERY: The search query.
-    
+
     Example:
         project cmd rag-search "what is fastapi"
         project cmd rag-search "deployment guide" --collection docs --top-k 10
@@ -294,7 +398,7 @@ async def drop_collection_async(
     vector_store: BaseVectorStore
 ) -> None:
     """Drop a collection.
-    
+
     Args:
         collection: Name of the collection to drop.
         yes: Whether to skip confirmation prompt.
@@ -305,7 +409,7 @@ async def drop_collection_async(
             f"Are you sure you want to drop collection '{collection}'? This cannot be undone.",
             abort=True,
         )
-    
+
     try:
         await vector_store.delete_collection(collection)
         success(f"Collection '{collection}' dropped successfully.")
@@ -324,9 +428,9 @@ async def drop_collection_async(
 def rag_drop(collection: str, yes: bool):
     """
     Drop a collection and all its data.
-    
+
     COLLECTION: Name of the collection to drop.
-    
+
     Example:
         project cmd rag-drop my_collection
         project cmd rag-drop my_collection --yes
@@ -339,7 +443,7 @@ def rag_drop(collection: str, yes: bool):
 def rag_stats():
     """Display overall RAG system statistics."""
     settings, vector_store, _, _, _ = get_rag_services()
-    
+
     asyncio.run(stats_async(settings, vector_store))
 
 
@@ -348,14 +452,14 @@ async def stats_async(
     vector_store: BaseVectorStore
 ) -> None:
     """Show RAG system statistics.
-    
+
     Args:
         settings: RAG configuration settings.
         vector_store: The Milvus vector store.
     """
     click.echo("RAG System Statistics")
     click.echo("=" * 40)
-    
+
     # Collection info
     try:
         collection_names = await vector_store.list_collections()
@@ -363,7 +467,7 @@ async def stats_async(
     except Exception as e:
         warning(f"Could not list collections: {e}")
         collection_names = []
-    
+
     # Configuration
     click.echo("\nConfiguration:")
     click.echo(f"  Embedding model: {settings.embeddings_config.model}")
@@ -371,7 +475,7 @@ async def stats_async(
     click.echo(f"  Chunk size: {settings.chunk_size}")
     click.echo(f"  Chunk overlap: {settings.chunk_overlap}")
     click.echo(f"  Parser method: {settings.pdf_parser.method}")
-    
+
     # Per-collection stats
     if collection_names:
         click.echo("\nCollection Details:")
@@ -384,9 +488,9 @@ async def stats_async(
                 total_vectors += info_obj.total_vectors
             except Exception:
                 click.echo(f"  {name}: Error getting info")
-        
+
         click.echo(f"\nTotal vectors: {total_vectors:,}")
-    
+
     click.echo()
 
 

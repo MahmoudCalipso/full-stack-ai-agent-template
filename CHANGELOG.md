@@ -5,11 +5,157 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.2] - 2026-03-16
+## [0.2.2] - 2026-03-20
 
 ### Added
 
-#### RAG (Retrieval-Augmented Generation)
+#### Frontend — Landing Page
+- **Floating navbar with animated beam border** — Pill-shaped navbar with rotating conic-gradient border in brand color, glass morphism background, adaptive dark/light mode
+- **Tech stack marquee** — Infinite scrolling carousel with all project technologies (30+ items), edge fade mask, 60s animation loop
+- **Grid background** — 64px grid pattern on hero section with radial gradient mask fade
+- **Glass cards** — Frosted glass feature cards with backdrop-blur, hover lift animation, dark/light mode variants
+- **Brand color system** — Global `--color-brand` CSS variable (oklch), configurable hue presets (blue, green, red, violet, orange). Changes one value to retheme entire app
+- **Footer** — Two-column footer with product links, resources, API docs link, copyright
+
+#### Frontend — Auth
+- **Split layout login/register** — Left panel: dark bg with grid, gradient glow, heading, feature pills (AI Chat, KB, Auth, Real-time), quote. Right panel: form with contrasting background. Mobile: form only
+- **Auth guard** — Client-side `AuthGuard` component wraps dashboard layout, redirects unauthenticated users to `/login` with loading spinner
+
+#### Frontend — Dashboard
+- **Personalized greeting** — "Good morning/afternoon/evening, {name}" based on time of day
+- **Stats row** — Compact 4-column cards (API status, Conversations, Knowledge Base, AI Agent)
+- **Recent conversations** — Last 5 chats with relative timestamps, skeleton loading
+- **Collections overview** — Clickable RAG collection list with vector counts and status badges
+- **Quick actions grid** — 2x2 icon grid (New Chat, Upload Docs, API Docs, Profile)
+- **Account card** — Avatar with initials, email, role, registration date
+- **Environment card** — Status, version, framework, LLM, vector store info
+
+#### Frontend — Chat
+- **"Thinking..." indicator** — Animated bounce dots before first content arrives from LLM
+- **Copy buttons** — Appear on hover under both user and assistant messages (moved from inside bubble)
+- **Message timestamps** — HH:MM format under each message, hidden during streaming
+- **File upload system** — Upload images, text, PDF, DOCX via backend API. Thumbnail preview for images, badge for files. Files parsed on backend (PyMuPDF for PDF, python-docx for DOCX)
+- **Image support (LLM Vision)** — Images sent as `BinaryContent` to PydanticAI agent for vision analysis. Stored in `media/` directory, linked to messages via `ChatFile` model
+- **Microphone (Speech-to-Text)** — Web Speech API voice input button, always visible, toast fallback for unsupported browsers
+- **Message queue** — Input not disabled during processing. Messages queued on frontend, auto-sent when bot finishes responding
+- **Model selector** — Dropdown in chat status bar (Claude Sonnet 4, Claude 3.5 Sonnet, GPT-4o, GPT-4o Mini, Gemini 2.5 Flash). Backend `get_agent(model_name=...)` accepts override
+- **Tool call persistence** — Tool calls (name, args, result, status) saved to database during WebSocket streaming. Visible when loading conversation history
+
+#### Frontend — Knowledge Base (RAG Dashboard)
+- **Sidebar layout** — Collections in left sidebar (collapsible), documents/search in main area
+- **Create collection** — Inline input in sidebar with "+" button
+- **Upload & ingest** — File upload → backend ingestion (parse, chunk, embed, store). Supports PDF, DOCX, TXT, MD. Max 50MB
+- **Document tracking** — `RAGDocument` model in database: status (processing/done/error), error message, timestamps, storage path
+- **Document list** — Per-collection with filename, type badge, size, date, status icon (spinner/check/error)
+- **View original** — Eye icon opens original uploaded file (stored in local storage / S3)
+- **Delete document** — AlertDialog confirmation, removes from vector store + file storage + SQL
+- **Search** — Full-text vector search with score badges, source document linking ("View source")
+
+#### Frontend — UI Components (shadcn/ui + Radix)
+- **Dialog** — `@radix-ui/react-dialog` based modal with overlay, close button, fade+zoom animations
+- **AlertDialog** — `@radix-ui/react-alert-dialog` for destructive action confirmations (delete collection, delete document)
+- **Avatar** — `@radix-ui/react-avatar` with image support and initial fallback
+- **Skeleton** — Pulse animation placeholder for loading states
+- **Separator** — `@radix-ui/react-separator` for visual dividers
+- **Tooltip** — `@radix-ui/react-tooltip` with TooltipProvider
+- **Button `asChild` fix** — `@radix-ui/react-slot` enables proper `asChild` prop on Button component
+
+#### Frontend — Navigation & Layout
+- **Nav links in header** — Dashboard, Chat, Knowledge Base, Profile tabs with icons and active state (moved from sidebar)
+- **Sidebar → mobile only** — Desktop sidebar removed, kept as Sheet drawer for mobile
+- **Language switcher** — Segmented control buttons (EN | PL) with `router.push` locale switching
+- **Softer dark theme** — Zinc-inspired tones (14.5% lightness, subtle blue-purple hue 285) replacing pure black (12%)
+- **`BACKEND_URL` constant** — API docs links point to backend (`http://localhost:8000/docs`), not frontend
+- **Page transition animations** — Fade-in + 6px slide-up animation (250ms ease-out) on dashboard page navigation via `PageTransition` component with `key={pathname}` re-mount
+- **Breadcrumbs** — Auto-generated breadcrumb navigation on Profile and Settings pages with `aria-label="Breadcrumb"`, chevron separators, clickable parent links
+
+#### Frontend — Error Handling
+- **404 page** — `not-found.tsx` with "Page not found" message, "Go home" and "Dashboard" buttons, brand-colored styling
+- **500 error boundary** — `global-error.tsx` with inline styles (no CSS dependency), "Try again" reset button, error digest ID display
+- **Page error boundary** — `[locale]/error.tsx` catches errors within layout, preserves header/sidebar, "Try again" + "Go home" buttons
+
+#### Frontend — Accessibility
+- **`aria-current="page"`** — Active nav items in header marked for screen readers
+- **`aria-live="polite"`** — Loading/status changes announced: auth guard, chat "Thinking..." indicator, RAG upload progress, RAG document status icons
+- **`aria-hidden="true"`** — Decorative bounce dots and spinner icons hidden from screen readers
+- **`role="status"`** — RAG `StatusIcon` component with descriptive `aria-label` (Completed/Failed/Processing)
+
+#### Backend — File System
+- **`ChatFile` model** — Tracks files uploaded in chat (user_id, message_id, filename, mime_type, storage_path, file_type, parsed_content)
+- **`LocalFileStorage` service** — Save/load/delete files in `media/{user_id}/` directory. Extensible `BaseFileStorage` ABC for S3/MinIO
+- **`POST /files/upload`** — Multipart upload with MIME validation, 10MB limit, auto-parsing (text/PDF/DOCX)
+- **`GET /files/{id}`** — Download with owner-only access check
+- **File linking** — Files linked to messages via `message_id` FK, loaded with conversation history
+
+#### Backend — RAG Improvements
+- **Async Celery ingestion** — `POST /rag/collections/{name}/ingest` returns `202 Accepted` and dispatches `ingest_document_task` to Celery worker. Falls back to synchronous ingestion when Celery is not enabled
+- **WebSocket status updates** — `WS /rag/ws/status` endpoint subscribes to Redis pub/sub channel `rag_status`, forwards real-time ingestion status (processing → done/error) to frontend
+- **RAG is global** — Removed `user_id` from `RAGDocument` model. All documents, collections, and vectors are shared across users (no per-user isolation)
+- **CLI DB tracking** — `rag-ingest` CLI command now creates `RAGDocument` records in SQL for each file. Documents ingested via CLI appear in the Knowledge Base dashboard with status tracking
+- **Retry endpoint** — `POST /rag/documents/{id}/retry` resets failed document status to `processing` for re-ingestion
+- **`RAGDocument` model** — Tracks ingestion status (processing/done/error), error_message, vector_document_id, storage_path, timestamps
+- **`GET /rag/documents`** — List tracked documents with collection filter
+- **`GET /rag/documents/{id}/download`** — Download original ingested file
+- **`DELETE /rag/documents/{id}`** — Removes from vector store + file storage + SQL (3-way cleanup)
+- **Configurable upload size** — `MAX_UPLOAD_SIZE_MB` setting (default 50MB) used in file upload, RAG ingest, and health endpoint. Frontend reads from `NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB` env var
+- **Batch upload** — Frontend RAG page supports multi-file upload with progress bar (X/Y files, filename indicator)
+- **Filename fix in ingestion** — `document.metadata.filename` set from `source_path` instead of temp file name
+- **`EmbeddingsConfig` model validator** — Auto-derives vector dimensions from model name via `EMBEDDING_DIMENSIONS` lookup table
+- **`EMBEDDING_MODEL` env var wired** — Settings → RAGSettings → EmbeddingsConfig flow complete
+
+#### Backend — Agent Improvements
+- **Tool call persistence** — WebSocket handler collects tool calls during streaming, saves to DB after assistant message
+- **Conversation title auto-set** — Backend updates conversation title from first user message when title is empty
+- **Model selection** — WebSocket handler accepts `model` field, passes to `get_agent(model_name=...)`
+- **File handling in WS** — Parses `file_ids` from WebSocket message, loads files, images → `BinaryContent` for LLM vision, text/PDF/DOCX → parsed content appended to prompt
+
+#### Backend — Security & Compliance
+- **PII redaction in logs** — `PiiRedactionFilter` logging filter scrubs emails, JWT tokens, API keys (OpenAI/Anthropic), Bearer tokens, and password-like values from all log output. Prevents PII leaks to log aggregators (Datadog, CloudWatch, Logfire). Activated via `setup_logging()` at app startup
+- **Dependency vulnerability scanning** — CI pipeline includes `security` job with `pip-audit` for supply chain risk detection
+- **Docker image scanning** — Trivy vulnerability scanner (`aquasecurity/trivy-action@0.28.0`) runs after Docker build in CI, reports CRITICAL and HIGH severity issues
+
+#### Backend — Database & Infrastructure
+- **Missing indexes added** — `users.oauth_provider`, `users.oauth_id`, `sessions.user_id`, `webhooks.user_id`, `webhook_deliveries.webhook_id`, `webhook_deliveries.created_at` (all SQL variants)
+- **`MEDIA_DIR` config** — New setting for file storage directory
+- **`import sqlmodel` in migrations** — Added to `script.py.mako` template for SQLModel projects
+- **Graceful RAG startup** — Embedding, reranker, vector store warmup wrapped in try/except, app doesn't crash on failure
+
+### Changed
+
+- **Auth layout theme-aware** — Left hero panel now adapts to light/dark mode (`bg-zinc-100 dark:bg-zinc-950`) instead of hardcoded `bg-zinc-950`
+- **`next/image` migration** — Chat file thumbnails and attached images use `next/image` with `unoptimized` for lazy loading and layout stability
+- **Consistent loading states** — All `"..."` placeholder text and `"Loading..."` messages replaced with `Skeleton` components (dashboard stats, conversation sidebar, OAuth callback)
+- **RAG sidebar responsive** — Sidebar width `w-52 lg:w-64` (narrower on tablets, full width on desktop)
+- **Empty search state** — RAG search shows in-UI "No results found" with icon instead of toast-only
+- **Profile inline update** — `window.location.reload()` replaced with Zustand `setUser()` for instant state update without page reload
+- **Real-time form validation** — Register: email format on blur, password strength bar (Weak/Fair/Good/Strong), confirm password match indicator. Login: email format on blur
+- **`TimestampMixin` uses `sa_column_kwargs`** — Fixed SQLModel shared Column object bug (`Column 'created_at' already assigned to Table`)
+- **`MessageList` schema** — Changed from `MessageReadSimple` (no tool_calls) to `MessageRead` (with tool_calls + files)
+- **`list_messages` endpoint** — Now passes `include_tool_calls=True` to eagerly load tool call relationships
+- **RAG proxy routes** — Removed `NEXT_PUBLIC_AUTH_ENABLED` gate, always forward auth cookie if present
+- **Removed unused code** — `pipelines/` directory, `repositories/base.py`, `worker/tasks/rag_ingestion.py` (reindex task), `test_pipelines.py`, `docs/howto/add-data-pipeline.md`
+- **Removed section dividers** — `# =========` comments removed from `services/conversation.py`, `repositories/conversation.py`, `schemas/conversation.py`
+- **`itsdangerous` dependency** — Added when OAuth enabled (required by Starlette `SessionMiddleware`)
+- **`logger` added to `main.py`** — `import logging` + `logger = logging.getLogger(__name__)` for RAG startup error logging
+- **Document ingestion is CLI-only** - Removed upload API endpoints. Ingestion exclusively via CLI commands (later re-added as `POST /rag/collections/{name}/ingest`)
+- **`RetrievalService` renamed** - `MilvusRetrievalService` → `RetrievalService` (now backend-agnostic)
+- **Docker validation relaxed** - Docker only required for Milvus and Qdrant vector stores
+- **`.env.example` restructured** - RAG section moved from `use_milvus` to `enable_rag` guard
+- **README.md rewritten** - Updated for 5 frameworks, 4 providers, RAG section with vector store/embedding tables
+- **CLAUDE.md / AGENTS.md updated** - Both project-level and template versions updated with RAG, Gemini, vector stores
+
+### Fixed
+
+- **Language switching** — `usePathname()` with next-intl returns path with locale prefix, original `segments[1] = newLocale` + `router.push` logic restored
+- **Conversation "20531d ago"** — `updated_at` null fallback to `created_at` in dashboard
+- **RAG stats "..."** — Set `{collections: [], totalVectors: 0}` on error instead of null
+- **`callable | None` TypeError** — Changed to `Callable | None` with proper import in `ingestion.py`
+- **Tool call card TS error** — `Type 'unknown' not assignable to ReactNode` fixed with ternary
+- **Empty args crash** — `json.loads("")` in tool call persistence fixed with `.strip()` check
+- **`user_prompt` serialization** — `BinaryContent` not JSON serializable, now sends text-only prompt in WS event
+- **File linking FK violation** — ChatFile `message_id` update moved to same DB session as message insert
+
+#### RAG (Retrieval-Augmented Generation) — Pipeline
 
 - **RAG integration** - Full RAG pipeline: document parsing → chunking → embedding → vector store → retrieval. Integrated with all 5 AI frameworks as `search_knowledge_base` tool
 - **4 vector store backends** - Milvus (Docker), Qdrant (Docker), ChromaDB (embedded), pgvector (PostgreSQL extension). Selected via `vector_store` config option
@@ -48,17 +194,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`make quickstart`** - One command to install deps, start Docker services, run migrations, create admin user
 - **Vercel deployment** - `frontend/vercel.json` config + `make vercel-deploy` target with env var instructions
 - **Qdrant Docker service** - Added to `docker-compose.dev.yml` with health check, volume, and backend env vars
-
-### Changed
-
-- **Document ingestion is CLI-only** - Removed upload API endpoints (`POST /collections/{name}/upload`, `POST /collections/{name}/ingest`). Removed frontend upload button (paperclip in chat). Ingestion exclusively via CLI commands
-- **`RetrievalService` renamed** - `MilvusRetrievalService` → `RetrievalService` (now backend-agnostic, works with any `BaseVectorStore`)
-- **Docker validation relaxed** - Docker only required for Milvus and Qdrant vector stores. ChromaDB (embedded) and pgvector (existing PostgreSQL) work without Docker
-- **`.env.example` restructured** - RAG section moved from `use_milvus` to `enable_rag` guard. Added all missing env vars (chunking, hybrid search, vector store settings)
-- **README.md rewritten** - Updated for 5 frameworks, 4 providers, RAG section with vector store/embedding tables, deployment docs
-- **CLAUDE.md / AGENTS.md updated** - Both project-level and template versions updated with RAG, Gemini, vector stores
-
-### Fixed
 
 #### PR #50 RAG Bug Fixes (28 issues found and fixed)
 

@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks";
 import { ROUTES, BACKEND_URL } from "@/lib/constants";
 import type { HealthResponse, Conversation, ConversationListResponse } from "@/types";
 import {
-  CheckCircle, XCircle, Loader2, User, ArrowRight, MessageSquare,
+  CheckCircle, XCircle, User, ArrowRight, MessageSquare,
   Database, Activity, ExternalLink, BookOpen, Upload, Zap,
 } from "lucide-react";
 import { listCollections, getCollectionInfo, type RAGCollectionInfo } from "@/lib/rag-api";
@@ -67,7 +67,7 @@ export default function DashboardPage() {
   const displayName = user?.name || user?.email?.split("@")[0] || "";
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
+    <div className="space-y-6 pb-8">
       {/* Greeting */}
       <div>
         <h1 className="text-2xl font-bold sm:text-3xl">
@@ -84,13 +84,13 @@ export default function DashboardPage() {
         <Card className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground text-xs font-medium">API</span>
-            {healthLoading ? <Loader2 className="text-muted-foreground h-3.5 w-3.5 animate-spin" />
+            {healthLoading ? <Skeleton className="h-3.5 w-3.5 rounded-full" />
               : healthError ? <XCircle className="text-destructive h-3.5 w-3.5" />
               : <CheckCircle className="h-3.5 w-3.5 text-green-500" />}
           </div>
-          <p className="mt-1 text-xl font-bold">
-            {healthLoading ? "..." : healthError ? "Offline" : "Online"}
-          </p>
+          {healthLoading ? <Skeleton className="mt-1 h-7 w-16 rounded" /> : (
+            <p className="mt-1 text-xl font-bold">{healthError ? "Offline" : "Online"}</p>
+          )}
           {health?.version && <p className="text-muted-foreground text-[10px]">v{health.version}</p>}
         </Card>
 
@@ -100,9 +100,9 @@ export default function DashboardPage() {
             <span className="text-muted-foreground text-xs font-medium">Conversations</span>
             <MessageSquare className="text-muted-foreground h-3.5 w-3.5" />
           </div>
-          <p className="mt-1 text-xl font-bold">
-            {conversationsLoading ? "..." : recentConversations.length}
-          </p>
+          {conversationsLoading ? <Skeleton className="mt-1 h-7 w-10 rounded" /> : (
+            <p className="mt-1 text-xl font-bold">{recentConversations.length}</p>
+          )}
           <p className="text-muted-foreground text-[10px]">recent chats</p>
         </Card>
 
@@ -112,9 +112,9 @@ export default function DashboardPage() {
             <span className="text-muted-foreground text-xs font-medium">Knowledge Base</span>
             <Database className="text-muted-foreground h-3.5 w-3.5" />
           </div>
-          <p className="mt-1 text-xl font-bold">
-            {ragStats?.totalVectors?.toLocaleString() ?? "..."}
-          </p>
+          {!ragStats ? <Skeleton className="mt-1 h-7 w-14 rounded" /> : (
+            <p className="mt-1 text-xl font-bold">{ragStats.totalVectors.toLocaleString()}</p>
+          )}
           <p className="text-muted-foreground text-[10px]">
             vectors in {ragStats?.collections?.length ?? 0} collection{ragStats && ragStats.collections.length !== 1 ? "s" : ""}
           </p>
@@ -245,7 +245,7 @@ export default function DashboardPage() {
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground text-xs">Status</span>
-                  {healthLoading ? <span className="text-xs">...</span>
+                  {healthLoading ? <Skeleton className="h-4 w-12 rounded" />
                     : healthError ? <span className="text-destructive text-xs font-medium">Offline</span>
                     : <span className="text-xs font-medium text-green-500">Online</span>}
                 </div>

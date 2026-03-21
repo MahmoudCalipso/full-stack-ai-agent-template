@@ -48,6 +48,7 @@ class UserRead(UserBase, TimestampSchema):
     id: UUID
     is_superuser: bool = False
     role: UserRole = UserRole.USER
+    oauth_provider: str | None = None
 
 
 class UserInDB(UserRead):

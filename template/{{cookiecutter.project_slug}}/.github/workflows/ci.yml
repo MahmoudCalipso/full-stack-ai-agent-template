@@ -80,7 +80,7 @@ jobs:
         run: uv sync --directory backend --dev
 
       - name: Run tests
-        run: uv run --directory backend pytest tests/ -v --cov=app --cov-report=xml
+        run: uv run --directory backend pytest tests/ -v --cov=app --cov-report=xml --cov-fail-under=100
         env:
 {%- if cookiecutter.use_postgresql %}
           POSTGRES_HOST: localhost
@@ -99,6 +99,35 @@ jobs:
         with:
           files: ./backend/coverage.xml
           fail_ci_if_error: false
+
+{%- if cookiecutter.use_frontend %}
+
+  test-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+        working-directory: frontend
+
+      - name: Run unit tests with coverage
+        run: bun run test:coverage
+        working-directory: frontend
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps
+        working-directory: frontend
+
+      - name: Run E2E tests
+        run: bun run test:e2e
+        working-directory: frontend
+        env:
+          CI: true
+{%- endif %}
 
   security:
     name: Security Scan
@@ -141,9 +170,18 @@ jobs:
         with:
           context: ./backend
           push: false
+          load: true
           tags: {{ cookiecutter.project_slug }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: {{ cookiecutter.project_slug }}:latest
+          format: table
+          exit-code: 0
+          severity: CRITICAL,HIGH
 {%- endif %}
 {%- else %}
 # GitHub Actions CI is disabled for this project

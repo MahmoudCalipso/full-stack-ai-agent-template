@@ -147,6 +147,24 @@ class IngestionService:
                 message=f"Failed to process {filepath.name}",
             )
 
+    async def find_existing(self, collection_name: str, source_path: str) -> str | None:
+        """Check if a document with this source_path already exists. Returns document_id or None."""
+        return await self._find_existing_by_source(collection_name, source_path)
+
+    async def get_existing_hash(self, collection_name: str, source_path: str) -> str | None:
+        """Get content_hash of existing document by source_path."""
+        doc_id = await self._find_existing_by_source(collection_name, source_path)
+        if not doc_id:
+            return None
+        try:
+            docs = await self.store.get_documents(collection_name)
+            for doc in docs:
+                if doc.document_id == doc_id and doc.additional_info:
+                    return doc.additional_info.get("content_hash")
+        except Exception:
+            pass
+        return None
+
     async def remove_document(self, collection_name: str, document_id: str) -> bool:
         """Wipes all traces of a document from the vector store."""
         try:

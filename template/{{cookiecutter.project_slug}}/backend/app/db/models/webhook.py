@@ -46,7 +46,7 @@ class Webhook(TimestampMixin, SQLModel, table=True):
 {%- if cookiecutter.use_jwt %}
     user_id: uuid.UUID | None = Field(
         default=None,
-        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True),
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True),
     )
 {%- endif %}
 
@@ -67,7 +67,7 @@ class WebhookDelivery(SQLModel, table=True):
         sa_column=Column(PG_UUID(as_uuid=True), primary_key=True),
     )
     webhook_id: uuid.UUID = Field(
-        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("webhooks.id"), nullable=False),
+        sa_column=Column(PG_UUID(as_uuid=True), ForeignKey("webhooks.id"), nullable=False, index=True),
     )
     event_type: str = Field(max_length=100)
     payload: str = Field(sa_column=Column(Text, nullable=False))
@@ -76,7 +76,7 @@ class WebhookDelivery(SQLModel, table=True):
     error_message: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     attempt_count: int = Field(default=1)
     success: bool = Field(default=False)
-    created_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
+    created_at: datetime = Field(sa_column=Column(DateTime, nullable=False, index=True))
     delivered_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime, nullable=True),
@@ -132,7 +132,7 @@ class Webhook(Base, TimestampMixin):
     # Optional: Associate webhook with a user
 {%- if cookiecutter.use_jwt %}
     user_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
     )
 {%- endif %}
 
@@ -151,7 +151,7 @@ class WebhookDelivery(Base):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     webhook_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("webhooks.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("webhooks.id"), nullable=False, index=True
     )
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
     payload: Mapped[str] = mapped_column(Text, nullable=False)
@@ -161,7 +161,7 @@ class WebhookDelivery(Base):
     attempt_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     success: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=datetime.utcnow, nullable=False, index=True
     )
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
@@ -217,7 +217,7 @@ class Webhook(TimestampMixin, SQLModel, table=True):
 {%- if cookiecutter.use_jwt %}
     user_id: str | None = Field(
         default=None,
-        sa_column=Column(String(36), ForeignKey("users.id"), nullable=True),
+        sa_column=Column(String(36), ForeignKey("users.id"), nullable=True, index=True),
     )
 {%- endif %}
 
@@ -247,7 +247,7 @@ class WebhookDelivery(SQLModel, table=True):
         sa_column=Column(String(36), primary_key=True),
     )
     webhook_id: str = Field(
-        sa_column=Column(String(36), ForeignKey("webhooks.id"), nullable=False),
+        sa_column=Column(String(36), ForeignKey("webhooks.id"), nullable=False, index=True),
     )
     event_type: str = Field(max_length=100)
     payload: str = Field(sa_column=Column(Text, nullable=False))
@@ -256,7 +256,7 @@ class WebhookDelivery(SQLModel, table=True):
     error_message: str | None = Field(default=None, sa_column=Column(Text, nullable=True))
     attempt_count: int = Field(default=1)
     success: bool = Field(default=False)
-    created_at: datetime = Field(sa_column=Column(DateTime, nullable=False))
+    created_at: datetime = Field(sa_column=Column(DateTime, nullable=False, index=True))
     delivered_at: datetime | None = Field(
         default=None,
         sa_column=Column(DateTime, nullable=True),
@@ -311,7 +311,7 @@ class Webhook(Base, TimestampMixin):
 
 {%- if cookiecutter.use_jwt %}
     user_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("users.id"), nullable=True
+        String(36), ForeignKey("users.id"), nullable=True, index=True
     )
 {%- endif %}
 
@@ -339,7 +339,7 @@ class WebhookDelivery(Base):
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     webhook_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("webhooks.id"), nullable=False
+        String(36), ForeignKey("webhooks.id"), nullable=False, index=True
     )
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
     payload: Mapped[str] = mapped_column(Text, nullable=False)
@@ -349,7 +349,7 @@ class WebhookDelivery(Base):
     attempt_count: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     success: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime, default=datetime.utcnow, nullable=False, index=True
     )
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 

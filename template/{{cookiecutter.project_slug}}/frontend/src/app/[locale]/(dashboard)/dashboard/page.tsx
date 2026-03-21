@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Card, CardHeader, CardTitle, CardContent, Button } from "@/components/ui";
+import { Card, CardHeader, CardTitle, CardContent, Button, Skeleton } from "@/components/ui";
 import { apiClient } from "@/lib/api-client";
 import { useAuth } from "@/hooks";
 import { ROUTES, BACKEND_URL } from "@/lib/constants";
@@ -10,7 +10,6 @@ import type { HealthResponse } from "@/types";
 import {
   CheckCircle,
   XCircle,
-  Loader2,
   User,
   ArrowRight,
 {%- if cookiecutter.enable_ai_agent %}
@@ -80,7 +79,7 @@ export default function DashboardPage() {
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8">
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold">
           {getGreeting()}{user?.name ? `, ${user.name}` : user?.email ? `, ${user.email.split("@")[0]}` : ""}
@@ -96,7 +95,7 @@ export default function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">API Status</CardTitle>
             {healthLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <Skeleton className="h-4 w-4 rounded-full" />
             ) : healthError ? (
               <XCircle className="h-4 w-4 text-destructive" />
             ) : (
@@ -104,9 +103,9 @@ export default function DashboardPage() {
             )}
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">
-              {healthLoading ? "..." : healthError ? "Offline" : health?.status || "OK"}
-            </p>
+            {healthLoading ? <Skeleton className="h-8 w-16 rounded" /> : (
+              <p className="text-2xl font-bold">{healthError ? "Offline" : health?.status || "OK"}</p>
+            )}
             {health?.version && (
               <p className="text-xs text-muted-foreground">v{health.version}</p>
             )}
@@ -119,7 +118,11 @@ export default function DashboardPage() {
             <User className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-sm font-medium truncate">{user?.email || "..."}</p>
+            {user?.email ? (
+              <p className="text-sm font-medium truncate">{user.email}</p>
+            ) : (
+              <Skeleton className="h-5 w-40 rounded" />
+            )}
             <p className="text-xs text-muted-foreground">
               {user?.is_superuser ? "Admin" : "User"}
               {user?.created_at && ` · Since ${new Date(user.created_at).toLocaleDateString()}`}
@@ -147,9 +150,11 @@ export default function DashboardPage() {
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{ragStats?.vectors?.toLocaleString() ?? "..."}</p>
+            {!ragStats ? <Skeleton className="h-8 w-16 rounded" /> : (
+              <p className="text-2xl font-bold">{ragStats.vectors.toLocaleString()}</p>
+            )}
             <p className="text-xs text-muted-foreground">
-              vectors in {ragStats?.collections ?? "..."} collection{ragStats?.collections !== 1 ? "s" : ""}
+              vectors in {ragStats?.collections ?? 0} collection{ragStats?.collections !== 1 ? "s" : ""}
             </p>
           </CardContent>
         </Card>

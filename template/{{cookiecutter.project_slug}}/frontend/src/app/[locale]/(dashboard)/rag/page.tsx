@@ -1,5 +1,5 @@
 {%- if cookiecutter.enable_rag and cookiecutter.use_frontend %}
-"use client";
+{% raw %}"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
@@ -13,19 +13,28 @@ import {
 import {
   listCollections, getCollectionInfo, createCollection, deleteCollection,
   listTrackedDocuments, deleteTrackedDocument, ingestFile, searchDocuments,
-  getDocumentDownloadUrl,
-  type RAGCollectionInfo, type RAGTrackedDocument, type RAGSearchResult,
+  getDocumentDownloadUrl, listSyncLogs, triggerSync,
+  type RAGCollectionInfo, type RAGTrackedDocument, type RAGSearchResult, type RAGSyncLog,
 } from "@/lib/rag-api";
-
+{% endraw %}
+{%- if cookiecutter.use_celery and cookiecutter.enable_redis %}
+import { BACKEND_URL } from "@/lib/constants";
+{%- endif %}
+{% raw %}
 interface CollectionWithInfo {
   name: string;
   info: RAGCollectionInfo | null;
 }
 
 function StatusIcon({ status }: { status: string }) {
-  if (status === "done") return <CheckCircle className="h-4 w-4 text-green-500" />;
-  if (status === "error") return <XCircle className="h-4 w-4 text-red-500" />;
-  return <Loader2 className="h-4 w-4 animate-spin text-brand" />;
+  const label = status === "done" ? "Completed" : status === "error" ? "Failed" : "Processing";
+  return (
+    <span role="status" aria-label={label}>
+      {status === "done" && <CheckCircle className="h-4 w-4 text-green-500" />}
+      {status === "error" && <XCircle className="h-4 w-4 text-red-500" />}
+      {status !== "done" && status !== "error" && <Loader2 className="h-4 w-4 animate-spin text-brand" />}
+    </span>
+  );
 }
 
 export default function RAGPage() {
@@ -37,10 +46,14 @@ export default function RAGPage() {
   const [loading, setLoading] = useState(true);
   const [docsLoading, setDocsLoading] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [searchDone, setSearchDone] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; filename: string } | null>(null);
   const [newName, setNewName] = useState("");
   const [showCreate, setShowCreate] = useState(false);
-  const [tab, setTab] = useState<"documents" | "search">("documents");
+  const [tab, setTab] = useState<"documents" | "search" | "sync">("documents");
+  const [syncLogs, setSyncLogs] = useState<RAGSyncLog[]>([]);
+  const [syncLogsLoading, setSyncLogsLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -69,9 +82,43 @@ export default function RAGPage() {
     finally { setDocsLoading(false); }
   };
 
+  const fetchSyncLogs = async () => {
+    setSyncLogsLoading(true);
+    try {
+      const data = await listSyncLogs(selected || undefined);
+      setSyncLogs(data.items || []);
+    } catch { setSyncLogs([]); }
+    finally { setSyncLogsLoading(false); }
+  };
+
   useEffect(() => { fetchCollections(); }, []);
   useEffect(() => { if (selected) fetchDocs(selected); }, [selected]);
+{% endraw %}
+{%- if cookiecutter.use_celery and cookiecutter.enable_redis %}
 
+  // SSE for real-time ingestion status updates (auto-reconnect built-in)
+  useEffect(() => {
+    const es = new EventSource(`${BACKEND_URL}/api/v1/rag/status/stream`);
+
+    es.addEventListener("status", (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        setDocs(prev => prev.map(d =>
+          d.id === data.document_id ? { ...d, status: data.status } : d
+        ));
+        if (data.status === "done") {
+          toast.success(`${data.filename}: Ingested successfully`);
+          fetchCollections();
+        } else if (data.status === "error") {
+          toast.error(`${data.filename}: Ingestion failed`);
+        }
+      } catch {}
+    });
+
+    return () => es.close();
+  }, []);
+{%- endif %}
+{% raw %}
   const handleCreate = async () => {
     const name = newName.trim().toLowerCase().replace(/\s+/g, "_");
     if (!name) return;
@@ -107,15 +154,38 @@ export default function RAGPage() {
     if (!files || !selected) return;
     e.target.value = "";
 
-    for (const file of Array.from(files)) {
-      setUploading(true);
+    const fileList = Array.from(files);
+    const maxMb = parseInt(process.env.NEXT_PUBLIC_MAX_UPLOAD_SIZE_MB || "50", 10);
+    let successCount = 0;
+    let errorCount = 0;
+
+    setUploading(true);
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i];
+      setUploadProgress({ current: i + 1, total: fileList.length, filename: file.name });
+
+      if (file.size > maxMb * 1024 * 1024) {
+        toast.error(`${file.name}: Too large (max ${maxMb}MB)`);
+        errorCount++;
+        continue;
+      }
+
       try {
-        const result = await ingestFile(selected, file);
-        toast.success(`${file.name}: Ingested`);
+        await ingestFile(selected, file);
+        successCount++;
       } catch (err) {
         toast.error(`${file.name}: ${err instanceof Error ? err.message : "Failed"}`);
-      } finally { setUploading(false); }
+        errorCount++;
+      }
     }
+
+    setUploading(false);
+    setUploadProgress(null);
+
+    if (successCount > 0) {
+      toast.success(`${successCount} file${successCount > 1 ? "s" : ""} ingested${errorCount > 0 ? `, ${errorCount} failed` : ""}`);
+    }
+
     await fetchDocs(selected);
     await fetchCollections();
   };
@@ -126,7 +196,7 @@ export default function RAGPage() {
     try {
       const data = await searchDocuments({ query: searchQuery, collection_name: selected, limit: 10 });
       setSearchResults(data.results);
-      if (data.results.length === 0) toast.info("No results");
+      setSearchDone(true);
     } catch { toast.error("Search failed"); }
     finally { setSearching(false); }
   };
@@ -134,10 +204,10 @@ export default function RAGPage() {
   const info = collections.find(c => c.name === selected)?.info;
 
   return (
-    <div className="-m-3 flex h-full sm:-m-6">
+    <div className="-m-3 flex min-h-0 flex-1 sm:-m-6">
       {/* Sidebar — collections */}
       {sidebarOpen && (
-        <div className="flex w-64 shrink-0 flex-col border-r">
+        <div className="flex w-52 shrink-0 flex-col border-r lg:w-64">
           <div className="flex h-12 items-center justify-between border-b px-3">
             <h2 className="text-sm font-semibold">Collections</h2>
             <div className="flex gap-1">
@@ -240,13 +310,33 @@ export default function RAGPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                  {uploading ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <Upload className="mr-2 h-3.5 w-3.5" />}
-                  Upload
-                </Button>
+                {uploadProgress ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground" role="status" aria-live="polite">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-brand" aria-hidden="true" />
+                    <span>{uploadProgress.current}/{uploadProgress.total}</span>
+                    <span className="max-w-[120px] truncate">{uploadProgress.filename}</span>
+                  </div>
+                ) : (
+                  <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                    <Upload className="mr-2 h-3.5 w-3.5" />
+                    Upload Files
+                  </Button>
+                )}
                 <input ref={fileRef} type="file" onChange={handleUpload} accept=".pdf,.docx,.txt,.md" multiple className="hidden" />
               </div>
             </div>
+
+            {/* Upload progress bar */}
+            {uploadProgress && (
+              <div className="px-4">
+                <div className="bg-muted h-1 w-full overflow-hidden rounded-full">
+                  <div
+                    className="bg-brand h-full rounded-full transition-all"
+                    style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Tabs */}
             <div className="flex border-b px-4">
@@ -255,6 +345,9 @@ export default function RAGPage() {
               </button>
               <button className={`px-3 py-2 text-sm font-medium ${tab === "search" ? "border-b-2 border-brand text-foreground" : "text-muted-foreground"}`} onClick={() => setTab("search")}>
                 Search
+              </button>
+              <button className={`px-3 py-2 text-sm font-medium ${tab === "sync" ? "border-b-2 border-brand text-foreground" : "text-muted-foreground"}`} onClick={() => { setTab("sync"); fetchSyncLogs(); }}>
+                Sync
               </button>
             </div>
 
@@ -350,6 +443,14 @@ export default function RAGPage() {
                     </Button>
                   </div>
 
+                  {searchDone && searchResults.length === 0 && !searching && (
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Search className="text-muted-foreground mb-3 h-8 w-8" />
+                      <p className="text-muted-foreground text-sm">No results found</p>
+                      <p className="text-muted-foreground mt-1 text-xs">Try a different query or check another collection</p>
+                    </div>
+                  )}
+
                   {searchResults.length > 0 && (
                     <div className="space-y-2">
                       {searchResults.map((r, i) => {
@@ -381,6 +482,82 @@ export default function RAGPage() {
                   )}
                 </div>
               )}
+
+              {tab === "sync" && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold">Sources</h3>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {[
+                        { id: "local", name: "Local Files", desc: "Sync from server directory", icon: FolderOpen },
+{%- if cookiecutter.enable_google_drive_ingestion %}
+                        { id: "gdrive", name: "Google Drive", desc: "Sync from Google Drive folder", icon: Database },
+{%- endif %}
+{%- if cookiecutter.enable_s3_ingestion %}
+                        { id: "s3", name: "S3 / MinIO", desc: "Sync from S3 bucket", icon: Database },
+{%- endif %}
+                      ].map(src => (
+                        <div key={src.id} className="flex items-center justify-between rounded-lg border p-3">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-muted flex h-9 w-9 items-center justify-center rounded-lg">
+                              <src.icon className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">{src.name}</p>
+                              <p className="text-muted-foreground text-[10px]">{src.desc}</p>
+                            </div>
+                          </div>
+                          <Button variant="outline" size="sm" className="text-xs" disabled={!selected}
+                            onClick={async () => {
+                              if (!selected) return;
+                              try {
+                                await triggerSync(selected, "full", "");
+                                toast.success(`Sync started (${src.name})`);
+                                fetchSyncLogs();
+                              } catch { toast.error("Failed to trigger sync"); }
+                            }}>
+                            Sync
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold">History</h3>
+                    {syncLogsLoading ? (
+                      <div className="space-y-2">{[1,2,3].map(i => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}</div>
+                    ) : syncLogs.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">No sync history yet</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {syncLogs.map(log => (
+                          <div key={log.id} className="rounded-lg border p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <StatusIcon status={log.status === "running" ? "processing" : log.status} />
+                                <span className="text-sm font-medium">{log.collection_name}</span>
+                                <Badge variant="outline" className="text-[10px]">{log.source}</Badge>
+                                <Badge variant="secondary" className="text-[10px]">{log.mode}</Badge>
+                              </div>
+                              {log.started_at && (
+                                <span className="text-muted-foreground text-[10px]">{new Date(log.started_at).toLocaleString()}</span>
+                              )}
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                              <span>{log.total_files} total</span>
+                              {log.ingested > 0 && <span className="text-green-500">{log.ingested} new</span>}
+                              {log.updated > 0 && <span className="text-blue-500">{log.updated} updated</span>}
+                              {log.skipped > 0 && <span>{log.skipped} skipped</span>}
+                              {log.failed > 0 && <span className="text-red-500">{log.failed} failed</span>}
+                            </div>
+                            {log.error_message && <p className="mt-1 text-xs text-red-500 truncate">{log.error_message}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -389,6 +566,7 @@ export default function RAGPage() {
   );
 }
 
+{% endraw %}
 {%- else %}
 export default function RAGPage() { return null; }
 {%- endif %}

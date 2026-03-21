@@ -10,6 +10,7 @@ from .config import (
     AIFrameworkType,
     AuthType,
     BackgroundTaskType,
+    BrandColorType,
     CIType,
     DatabaseType,
     FrontendType,
@@ -135,6 +136,12 @@ def new(output: Path | None, no_input: bool, name: str | None) -> None:
     help="Frontend server port (default: 3000)",
 )
 @click.option(
+    "--brand-color",
+    type=click.Choice(["blue", "green", "red", "violet", "orange"]),
+    default="blue",
+    help="Brand color theme for frontend (default: blue)",
+)
+@click.option(
     "--db-pool-size",
     type=int,
     default=5,
@@ -243,9 +250,9 @@ def new(output: Path | None, no_input: bool, name: str | None) -> None:
 )
 @click.option(
     "--pdf-parser",
-    type=click.Choice(["pymupdf", "llamaparse"]),
+    type=click.Choice(["pymupdf", "liteparse", "llamaparse"]),
     default="pymupdf",
-    help="PDF parser (pymupdf=local with tables/OCR, llamaparse=cloud AI 130+ formats)",
+    help="PDF parser (pymupdf=local, liteparse=AI-native local, llamaparse=cloud AI)",
 )
 def create(
     name: str,
@@ -291,6 +298,7 @@ def create(
     gdrive_rag: bool,
     reranker: str,
     pdf_parser: str,
+    brand_color: str,
     preset: str | None,
 ) -> None:
     """Create a new FastAPI project with specified options.
@@ -316,6 +324,7 @@ def create(
                 generate_env=not no_env,
                 include_example_crud=True,
                 frontend=FrontendType(frontend),
+                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -337,6 +346,7 @@ def create(
                 ci_type=CIType.GITHUB,
                 generate_env=not no_env,
                 frontend=FrontendType(frontend),
+                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -359,6 +369,7 @@ def create(
                 generate_env=not no_env,
                 include_example_crud=False,
                 frontend=FrontendType(frontend),
+                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 python_version=python_version,
@@ -375,6 +386,7 @@ def create(
                 generate_env=not no_env,
                 include_example_crud=not no_example_crud,
                 frontend=FrontendType(frontend),
+                brand_color=BrandColorType(brand_color),
                 backend_port=backend_port,
                 frontend_port=frontend_port,
                 db_pool_size=db_pool_size,
@@ -499,7 +511,7 @@ def templates() -> None:
     console.print("  --vector-store milvus|qdrant|chromadb|pgvector  Vector store backend")
     console.print("  --gdrive-rag                        Enable Google Drive ingestion")
     console.print("  --reranker none|cohere|cross_encoder Reranker logic")
-    console.print("  --pdf-parser pymupdf|llamaparse     PDF parser")
+    console.print("  --pdf-parser pymupdf|liteparse|llamaparse  PDF parser")
     console.print()
 
     console.print("[bold]Integrations:[/]")

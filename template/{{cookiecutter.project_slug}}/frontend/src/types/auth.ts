@@ -9,7 +9,27 @@ export interface User {
   is_active: boolean;
   is_superuser?: boolean;
   created_at: string;
+{%- if cookiecutter.enable_oauth %}
+  oauth_provider?: string | null;
+{%- endif %}
 }
+{%- if cookiecutter.enable_session_management %}
+
+export interface Session {
+  id: string;
+  device_name?: string | null;
+  device_type?: string | null;
+  ip_address?: string | null;
+  is_current: boolean;
+  created_at: string;
+  last_used_at: string;
+}
+
+export interface SessionListResponse {
+  sessions: Session[];
+  total: number;
+}
+{%- endif %}
 
 export interface LoginRequest {
   email: string;
