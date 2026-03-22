@@ -5,7 +5,7 @@ from typing import Annotated
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
 from sqlalchemy import select
@@ -49,6 +49,41 @@ async def update_current_user(
         user_in.role = None
     user = await user_service.update(current_user.id, user_in)
     return user
+
+
+@router.post("/me/avatar", response_model=UserRead)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: DBSession = None,
+):
+    """Upload or replace avatar image for the current user."""
+    ALLOWED_AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    MAX_AVATAR_SIZE = 2 * 1024 * 1024  # 2MB
+
+    if file.content_type not in ALLOWED_AVATAR_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP, and GIF images are allowed")
+
+    data = await file.read()
+    if len(data) > MAX_AVATAR_SIZE:
+        raise HTTPException(status_code=413, detail="Avatar image too large. Maximum 2MB.")
+
+    from app.services.file_storage import get_file_storage
+    storage = get_file_storage()
+
+    # Delete old avatar if exists
+    if current_user.avatar_url:
+        try:
+            await storage.delete(current_user.avatar_url)
+        except Exception:
+            pass
+
+    filename = file.filename or "avatar.jpg"
+    storage_path = await storage.save(f"avatars/{current_user.id}", filename, data)
+    current_user.avatar_url = storage_path
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
 
 
 @router.get("", response_model=Page[UserRead])
@@ -102,3 +137,24 @@ async def delete_user_by_id(
     Raises NotFoundError if user does not exist.
     """
     await user_service.delete(user_id)
+
+
+@router.get("/avatar/{user_id}")
+async def get_avatar(
+    user_id: UUID,
+    user_service: UserSvc,
+):
+    """Get user avatar image."""
+    from fastapi.responses import FileResponse
+    from app.services.file_storage import get_file_storage
+
+    user = await user_service.get_by_id(user_id)
+    if not user.avatar_url:
+        raise HTTPException(status_code=404, detail="No avatar set")
+
+    storage = get_file_storage()
+    file_path = storage.get_full_path(user.avatar_url)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Avatar file not found")
+
+    return FileResponse(path=file_path, media_type="image/jpeg")

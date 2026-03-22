@@ -11,7 +11,7 @@ import { LanguageSwitcherCompact } from "@/components/language-switcher";
 import { APP_NAME, ROUTES } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { LogOut, Menu, LayoutDashboard{%- if cookiecutter.enable_ai_agent %}, MessageSquare{%- endif %}{%- if cookiecutter.enable_rag %}, Database{%- endif %}{%- if cookiecutter.use_jwt %}, UserCircle{%- endif %} } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui";
 import { useSidebarStore } from "@/stores";
 
 const navItems = [
@@ -81,6 +81,7 @@ export function Header() {
               <Button variant="ghost" size="sm" asChild className="h-10 px-2 sm:px-3">
                 <Link href={ROUTES.PROFILE} className="flex items-center gap-2">
                   <Avatar className="h-6 w-6">
+                    {user?.avatar_url && <AvatarImage src={`/api/users/avatar/${user.id}`} alt={user.email} />}
                     <AvatarFallback className="bg-brand/10 text-brand text-[10px]">
                       {user?.email?.substring(0, 2).toUpperCase() || "U"}
                     </AvatarFallback>

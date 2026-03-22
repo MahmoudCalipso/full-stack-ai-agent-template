@@ -58,8 +58,8 @@ export default function DashboardPage() {
       setRagStats({ collections: infos, totalVectors });
     }).catch(() => setRagStats({ collections: [], totalVectors: 0 }));
 
-    apiClient.get<ConversationListResponse>("/conversations?limit=5")
-      .then(data => setRecentConversations(data.items || []))
+    apiClient.get<ConversationListResponse>("/conversations")
+      .then(data => setRecentConversations((data.items || []).slice(0, 5)))
       .catch(() => {})
       .finally(() => setConversationsLoading(false));
   }, []);

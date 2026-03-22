@@ -153,6 +153,15 @@ export function useConversations() {
   );
 
   const startNewChat = useCallback(async () => {
+    // If current conversation is empty (no messages), just reuse it
+    const currentId = useConversationStore.getState().currentConversationId;
+    if (currentId) {
+      const msgs = useConversationStore.getState().currentMessages;
+      if (msgs.length === 0) {
+        clearMessages();
+        return;
+      }
+    }
     clearMessages();
     setCurrentMessages([]);
     const newConversation = await createConversation();

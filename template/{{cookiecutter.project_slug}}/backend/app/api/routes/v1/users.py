@@ -8,7 +8,7 @@ from typing import Annotated
 from uuid import UUID
 {%- endif %}
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, UploadFile, File, status
 {%- if cookiecutter.enable_pagination %}
 from fastapi_pagination import Page
 from fastapi_pagination.ext.sqlalchemy import paginate
@@ -57,6 +57,53 @@ async def update_current_user(
         user_in.role = None
     user = await user_service.update(current_user.id, user_in)
     return user
+
+
+{%- if cookiecutter.enable_ai_agent and cookiecutter.enable_conversation_persistence %}
+
+
+@router.post("/me/avatar", response_model=UserRead)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: DBSession = None,
+):
+    """Upload or replace avatar image for the current user."""
+    from fastapi import HTTPException
+    ALLOWED_AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+    if file.content_type not in ALLOWED_AVATAR_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP, and GIF images are allowed")
+    data = await file.read()
+    if len(data) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Avatar image too large. Maximum 2MB.")
+    from app.services.file_storage import get_file_storage
+    storage = get_file_storage()
+    import contextlib
+    if current_user.avatar_url:
+        with contextlib.suppress(Exception):
+            await storage.delete(current_user.avatar_url)
+    storage_path = await storage.save(f"avatars/{current_user.id}", file.filename or "avatar.jpg", data)
+    current_user.avatar_url = storage_path
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+
+@router.get("/avatar/{user_id}")
+async def get_avatar(user_id: UUID, user_service: UserSvc):
+    """Get user avatar image."""
+    from fastapi import HTTPException
+    from fastapi.responses import FileResponse
+    from app.services.file_storage import get_file_storage
+    user = await user_service.get_by_id(user_id)
+    if not user.avatar_url:
+        raise HTTPException(status_code=404, detail="No avatar set")
+    storage = get_file_storage()
+    file_path = storage.get_full_path(user.avatar_url)
+    if not file_path:
+        raise HTTPException(status_code=404, detail="Avatar file not found")
+    return FileResponse(path=file_path, media_type="image/jpeg")
+{%- endif %}
 
 
 {%- if cookiecutter.enable_pagination %}

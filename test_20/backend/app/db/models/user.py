@@ -45,6 +45,7 @@ class User(TimestampMixin, SQLModel, table=True):
     role: str = Field(default=UserRole.USER.value, max_length=50)
     oauth_provider: str | None = Field(default=None, sa_column=Column(String(50), nullable=True, index=True))
     oauth_id: str | None = Field(default=None, sa_column=Column(String(255), nullable=True, index=True))
+    avatar_url: str | None = Field(default=None, sa_column=Column(String(500), nullable=True))
 
     # Relationship to sessions
     sessions: list["Session"] = Relationship(back_populates="user")

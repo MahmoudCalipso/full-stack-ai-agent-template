@@ -1,7 +1,7 @@
 {%- if cookiecutter.use_frontend and cookiecutter.use_jwt %}
 "use client";
 
-import { useState{% if cookiecutter.enable_session_management %}, useEffect, useCallback{% endif %} } from "react";
+import { useState, useRef{% if cookiecutter.enable_session_management %}, useEffect, useCallback{% endif %} } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks";
 import { useAuthStore } from "@/stores";
@@ -12,7 +12,8 @@ import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel{% endif %},
 } from "@/components/ui";
 import { ThemeToggle } from "@/components/theme";
-import { User as UserIcon, Mail, Shield, Settings{% if cookiecutter.enable_session_management %}, Monitor, Smartphone, Globe, Trash2{% endif %}{% if cookiecutter.enable_oauth %}, Link2{% endif %}, Palette, LogOut } from "lucide-react";
+import { User as UserIcon, Mail, Shield, Settings{% if cookiecutter.enable_session_management %}, Monitor, Smartphone, Globe, Trash2{% endif %}{% if cookiecutter.enable_oauth %}, Link2{% endif %}, Palette, LogOut, Camera } from "lucide-react";
+import Image from "next/image";
 import { Breadcrumb } from "@/components/layout/breadcrumb";
 {%- if cookiecutter.enable_oauth_google %}
 import { GoogleIcon } from "@/components/icons/google-icon";
@@ -43,6 +44,8 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editEmail, setEditEmail] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 {%- if cookiecutter.enable_session_management %}
   const [sessions, setSessions] = useState<Session[]>([]);
   const [sessionsLoading, setSessionsLoading] = useState(true);
@@ -73,6 +76,24 @@ export default function ProfilePage() {
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Failed to update profile");
     } finally { setIsSaving(false); }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    if (file.size > 2 * 1024 * 1024) { toast.error("Avatar too large. Maximum 2MB."); return; }
+    setAvatarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/users/me/avatar", { method: "POST", body: formData });
+      if (!res.ok) { const err = await res.json().catch(() => ({ detail: "Upload failed" })); throw new Error(err.detail || "Upload failed"); }
+      const updated = await res.json();
+      setUser(updated);
+      toast.success("Avatar updated");
+    } catch (err) { toast.error(err instanceof Error ? err.message : "Failed to upload avatar"); }
+    finally { setAvatarUploading(false); }
   };
 
 {%- if cookiecutter.enable_session_management %}
@@ -110,9 +131,18 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="bg-primary/10 flex h-14 w-14 shrink-0 items-center justify-center rounded-full">
-            <UserIcon className="text-primary h-7 w-7" />
-          </div>
+          <button type="button" onClick={() => avatarInputRef.current?.click()} disabled={avatarUploading}
+            className="group relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/10">
+            {user.avatar_url ? (
+              <Image src={`/api/users/avatar/${user.id}`} alt="" width={56} height={56} className="h-full w-full object-cover" unoptimized />
+            ) : (
+              <UserIcon className="text-primary h-7 w-7" />
+            )}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+              <Camera className="h-5 w-5 text-white" />
+            </div>
+          </button>
+          <input ref={avatarInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleAvatarUpload} className="hidden" />
           <div>
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{user.email}</h1>
             <div className="mt-1 flex items-center gap-2">

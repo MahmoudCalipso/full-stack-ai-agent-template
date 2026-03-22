@@ -10,6 +10,7 @@ export interface User {
   is_superuser?: boolean;
   created_at: string;
   oauth_provider?: string | null;
+  avatar_url?: string | null;
 }
 
 export interface Session {

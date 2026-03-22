@@ -56,6 +56,7 @@ class UserRead(UserBase, TimestampSchema):
 {%- if cookiecutter.enable_oauth %}
     oauth_provider: str | None = None
 {%- endif %}
+    avatar_url: str | None = None
 
 
 class UserInDB(UserRead):

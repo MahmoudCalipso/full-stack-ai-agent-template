@@ -75,7 +75,12 @@ function ConversationItem({
           onClick={(e) => e.stopPropagation()}
         />
       ) : (
-        <span className="flex-1 truncate">{displayTitle}</span>
+        <div className="min-w-0 flex-1">
+          <span className="block truncate">{displayTitle}</span>
+          <span className="text-muted-foreground block truncate text-[10px]">
+            {new Date(conversation.updated_at || conversation.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+          </span>
+        </div>
       )}
 
       <div className="relative">

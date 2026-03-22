@@ -8,6 +8,7 @@ import { CopyButton } from "./copy-button";
 import { User, Bot } from "lucide-react";
 import Image from "next/image";
 import { getFileUrl } from "@/lib/file-api";
+import { useAuthStore } from "@/stores";
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -17,6 +18,7 @@ interface MessageItemProps {
 export function MessageItem({ message, groupPosition }: MessageItemProps) {
   const isUser = message.role === "user";
   const isGrouped = groupPosition && groupPosition !== "single";
+  const { user: authUser } = useAuthStore();
 
   return (
     <div
@@ -42,12 +44,14 @@ export function MessageItem({ message, groupPosition }: MessageItemProps) {
 
       <div
         className={cn(
-          "z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9",
+          "z-10 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full sm:h-9 sm:w-9 overflow-hidden",
           isUser ? "bg-primary text-primary-foreground" : "bg-orange-500/10 text-orange-500",
           isGrouped && !isUser && "ring-background ring-2"
         )}
       >
-        {isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4 sm:h-5 sm:w-5" />}
+        {isUser && authUser?.avatar_url ? (
+          <Image src={`/api/users/avatar/${authUser.id}`} alt="" width={36} height={36} className="h-full w-full object-cover" unoptimized />
+        ) : isUser ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4 sm:h-5 sm:w-5" />}
       </div>
 
       <div

@@ -12,6 +12,7 @@ export interface User {
 {%- if cookiecutter.enable_oauth %}
   oauth_provider?: string | null;
 {%- endif %}
+  avatar_url?: string | null;
 }
 {%- if cookiecutter.enable_session_management %}
 

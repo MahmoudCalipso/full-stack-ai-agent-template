@@ -48,7 +48,7 @@ async def get_conversations_by_user(
         query = query.where(Conversation.user_id == user_id)
     if not include_archived:
         query = query.where(Conversation.is_archived == False)  # noqa: E712
-    query = query.order_by(Conversation.updated_at.desc()).offset(skip).limit(limit)
+    query = query.order_by(func.coalesce(Conversation.updated_at, Conversation.created_at).desc()).offset(skip).limit(limit)
     result = await db.execute(query)
     return list(result.scalars().all())
 
