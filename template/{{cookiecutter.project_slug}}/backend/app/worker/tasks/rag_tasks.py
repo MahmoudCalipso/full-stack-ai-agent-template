@@ -17,7 +17,6 @@ from app.worker.taskiq_app import broker
 logger = logging.getLogger(__name__)
 
 
-# === Task wrappers (framework-specific) ===
 
 {%- if cookiecutter.use_celery %}
 
@@ -95,17 +94,16 @@ async def sync_collection_task(ctx: dict, sync_log_id: str, source: str, collect
 {%- endif %}
 
 
-# === Sync Source Tasks (connector-based) ===
 
 {%- if cookiecutter.use_celery %}
 
 
 @shared_task(bind=True, max_retries=2, soft_time_limit=600, time_limit=720)
-def sync_single_source_task(self, source_id: str) -> dict[str, Any]:
-    """Sync a single connector source: fetch files remotely, ingest into vector DB."""
+def sync_single_source_task(self, source_id: str, sync_log_id: str | None = None) -> dict[str, Any]:
+    """Sync a single connector source. If sync_log_id provided, use existing log."""
     logger.info(f"Starting source sync: {source_id}")
     try:
-        return asyncio.run(_run_source_sync(source_id))
+        return asyncio.run(_run_source_sync(source_id, sync_log_id=sync_log_id))
     except Exception as exc:
         logger.error(f"Source sync failed: {exc}")
         raise self.retry(exc=exc, countdown=60)
@@ -129,10 +127,10 @@ def check_scheduled_syncs() -> None:
 
 
 @broker.task
-async def sync_single_source_task(source_id: str) -> dict[str, Any]:
-    """Sync a single connector source: fetch files remotely, ingest into vector DB."""
+async def sync_single_source_task(source_id: str, sync_log_id: str | None = None) -> dict[str, Any]:
+    """Sync a single connector source. If sync_log_id provided, use existing log."""
     logger.info(f"Starting source sync: {source_id}")
-    return await _run_source_sync(source_id)
+    return await _run_source_sync(source_id, sync_log_id=sync_log_id)
 
 
 @broker.task
@@ -149,10 +147,10 @@ async def check_scheduled_syncs() -> None:
 {%- elif cookiecutter.use_arq %}
 
 
-async def sync_single_source_task(ctx: dict, source_id: str) -> dict[str, Any]:
-    """Sync a single connector source: fetch files remotely, ingest into vector DB."""
+async def sync_single_source_task(ctx: dict, source_id: str, sync_log_id: str | None = None) -> dict[str, Any]:
+    """Sync a single connector source. If sync_log_id provided, use existing log."""
     logger.info(f"Starting source sync: {source_id}")
-    return await _run_source_sync(source_id)
+    return await _run_source_sync(source_id, sync_log_id=sync_log_id)
 
 
 async def check_scheduled_syncs(ctx: dict) -> None:
@@ -169,7 +167,6 @@ async def check_scheduled_syncs(ctx: dict) -> None:
 {%- endif %}
 
 
-# === Shared async logic ===
 
 
 async def _run_ingestion(rag_document_id: str, collection_name: str, filepath: str, source_path: str, replace: bool) -> dict[str, Any]:
@@ -322,7 +319,6 @@ async def _run_sync(sync_log_id: str, source: str, collection_name: str, mode: s
     return {"status": "done", "ingested": ingested, "updated": updated, "skipped": skipped, "failed": failed}
 
 
-# === Helpers ===
 
 
 async def _update_status(rag_document_id: str, status: str, error_message: str | None = None):
@@ -375,7 +371,7 @@ async def _update_sync_log(sync_log_id: str, status: str, error_message: str | N
         logger.warning(f"Failed to update SyncLog: {e}")
 
 
-async def _run_source_sync(source_id: str) -> dict[str, Any]:
+async def _run_source_sync(source_id: str, sync_log_id: str | None = None) -> dict[str, Any]:
     """Core sync logic for connector-based sources (shared between all task frameworks).
 
     Fetches files from a remote connector (e.g. Google Drive, S3), downloads them
@@ -399,7 +395,6 @@ async def _run_source_sync(source_id: str) -> dict[str, Any]:
     from app.rag.vectorstore import PgVectorStore as VectorStore
 {%- endif %}
 
-    # --- Phase 1: Load source config & create sync log ---
     async with get_db_context() as db:
         source_svc = SyncSourceService(db)
 
@@ -415,11 +410,13 @@ async def _run_source_sync(source_id: str) -> dict[str, Any]:
         collection_name = source.collection_name
         sync_mode = source.sync_mode
 
-        # Create SyncLog entry
-        log = await source_svc.trigger_sync(source_id)
-        log_id = str(log.id)
+        # Use existing SyncLog (from API trigger) or create new one (from scheduler)
+        if sync_log_id:
+            log_id = sync_log_id
+        else:
+            log = await source_svc.trigger_sync(source_id)
+            log_id = str(log.id)
 
-    # --- Phase 2: Download & ingest files (outside DB context — long-running) ---
     connector = connector_cls()
     rag_settings = settings.rag
     embed_service = EmbeddingService(settings=rag_settings)
@@ -451,7 +448,6 @@ async def _run_source_sync(source_id: str) -> dict[str, Any]:
         logger.error(f"Source sync failed for {source_id}: {e}")
         failed = max(failed, 1)
 
-    # --- Phase 3: Update sync status ---
     async with get_db_context() as db:
         sync_svc = RAGSyncService(db)
         source_svc = SyncSourceService(db)

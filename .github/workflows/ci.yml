@@ -121,11 +121,10 @@ jobs:
         run: uv run pip-audit --progress-spinner=off
 
   # ============================================
-  # Stage 2: Template Backend Tests
-  # (runs after Stage 1 passes)
+  # Stage 2: Generated Project Tests
   # ============================================
   generate-minimal:
-    name: Template - Minimal
+    name: Template - Minimal (SQLite)
     needs: [lint, type-check, test, security]
     runs-on: ubuntu-latest
     steps:
@@ -159,72 +158,16 @@ jobs:
           uv run ruff check .
           uv run ruff format --check .
 
+      - name: Run type check
+        working-directory: /tmp/projects/test_minimal/backend
+        run: uv run mypy app --ignore-missing-imports
+
       - name: Run tests
         working-directory: /tmp/projects/test_minimal/backend
-        run: uv run pytest
+        run: uv run pytest -v
 
   generate-postgresql:
-    name: Template - PostgreSQL
-    needs: [lint, type-check, test, security]
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "latest"
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
-      - name: Install generator
-        run: uv sync
-
-      - name: Generate PostgreSQL project
-        run: |
-          mkdir -p /tmp/projects
-          uv run fastapi-fullstack create test_pg --database postgresql --auth jwt -o /tmp/projects
-
-      - name: Install generated project
-        working-directory: /tmp/projects/test_pg/backend
-        run: uv sync --extra dev
-
-      - name: Run linting
-        working-directory: /tmp/projects/test_pg/backend
-        run: |
-          uv run ruff check .
-          uv run ruff format --check .
-
-      - name: Run tests
-        working-directory: /tmp/projects/test_pg/backend
-        env:
-          POSTGRES_HOST: localhost
-          POSTGRES_PORT: 5432
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: test_db
-        run: uv run pytest
-
-  generate-full:
-    name: Template - Full
+    name: Template - PostgreSQL + Celery + RAG
     needs: [lint, type-check, test, security]
     runs-on: ubuntu-latest
     services:
@@ -267,26 +210,35 @@ jobs:
       - name: Install generator
         run: uv sync
 
-      - name: Generate full-featured project
+      - name: Generate PostgreSQL project with RAG
         run: |
           mkdir -p /tmp/projects
-          uv run fastapi-fullstack create test_full \
+          uv run fastapi-fullstack create test_pg \
             --database postgresql \
-            --auth jwt \
+            --task-queue celery \
+            --redis \
+            --rag \
+            --admin-panel \
+            --session-management \
+            --frontend nextjs \
             -o /tmp/projects
 
-      - name: Install generated project
-        working-directory: /tmp/projects/test_full/backend
+      - name: Install backend
+        working-directory: /tmp/projects/test_pg/backend
         run: uv sync --extra dev
 
-      - name: Run linting
-        working-directory: /tmp/projects/test_full/backend
+      - name: Run backend linting
+        working-directory: /tmp/projects/test_pg/backend
         run: |
           uv run ruff check .
           uv run ruff format --check .
 
-      - name: Run tests
-        working-directory: /tmp/projects/test_full/backend
+      - name: Run backend type check
+        working-directory: /tmp/projects/test_pg/backend
+        run: uv run mypy app --ignore-missing-imports
+
+      - name: Run backend tests
+        working-directory: /tmp/projects/test_pg/backend
         env:
           POSTGRES_HOST: localhost
           POSTGRES_PORT: 5432
@@ -295,15 +247,67 @@ jobs:
           POSTGRES_DB: test_db
           REDIS_HOST: localhost
           REDIS_PORT: 6379
-        run: uv run pytest
+          SECRET_KEY: test-secret-key-for-ci
+        run: uv run pytest -v
+
+  generate-mongodb:
+    name: Template - MongoDB
+    needs: [lint, type-check, test, security]
+    runs-on: ubuntu-latest
+    services:
+      mongo:
+        image: mongo:7
+        ports:
+          - 27017:27017
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install generator
+        run: uv sync
+
+      - name: Generate MongoDB project
+        run: |
+          mkdir -p /tmp/projects
+          uv run fastapi-fullstack create test_mongo \
+            --database mongodb \
+            --task-queue none \
+            -o /tmp/projects
+
+      - name: Install generated project
+        working-directory: /tmp/projects/test_mongo/backend
+        run: uv sync --extra dev
+
+      - name: Run linting
+        working-directory: /tmp/projects/test_mongo/backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      - name: Run tests
+        working-directory: /tmp/projects/test_mongo/backend
+        env:
+          MONGO_URL: mongodb://localhost:27017
+          MONGO_DB: test_db
+          SECRET_KEY: test-secret-key-for-ci
+        run: uv run pytest -v
 
   # ============================================
-  # Stage 3: Template Frontend Test
-  # (runs after Stage 2 passes)
+  # Stage 3: Frontend Tests
   # ============================================
   generate-frontend:
-    name: Template - Frontend
-    needs: [generate-minimal, generate-postgresql, generate-full]
+    name: Template - Frontend (Next.js)
+    needs: [generate-minimal, generate-postgresql, generate-mongodb]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -331,16 +335,18 @@ jobs:
           mkdir -p /tmp/projects
           uv run fastapi-fullstack create test_frontend \
             --frontend nextjs \
-            --auth jwt \
+            --rag \
+            --task-queue celery \
+            --redis \
             -o /tmp/projects
 
       - name: Install frontend dependencies
         working-directory: /tmp/projects/test_frontend/frontend
         run: bun install
 
-      - name: Run formatting check
+      - name: Run lint
         working-directory: /tmp/projects/test_frontend/frontend
-        run: bun run format:check
+        run: bun run lint
 
       - name: Run type check
         working-directory: /tmp/projects/test_frontend/frontend

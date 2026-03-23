@@ -44,6 +44,7 @@ These variables are set automatically by the generator.
 | `project_description` | string | `"A FastAPI project"` | Short description of the project |
 | `author_name` | string | `"Your Name"` | Author's full name |
 | `author_email` | string | `"your@email.com"` | Author's email address (validated format) |
+| `timezone` | string | `"UTC"` | Project timezone in IANA format (e.g. `UTC`, `Europe/Warsaw`) |
 
 ---
 

@@ -446,12 +446,16 @@ class ConversationService:
                 details={"conversation_id": conversation_id},
             )
 {%- if cookiecutter.use_jwt %}
-        if user_id is not None and hasattr(conversation, "user_id") and conversation.user_id is not None:
-            if str(conversation.user_id) != str(user_id):
-                raise NotFoundError(
-                    message="Conversation not found",
-                    details={"conversation_id": conversation_id},
-                )
+        if (
+            user_id is not None
+            and hasattr(conversation, "user_id")
+            and conversation.user_id is not None
+            and str(conversation.user_id) != str(user_id)
+        ):
+            raise NotFoundError(
+                message="Conversation not found",
+                details={"conversation_id": conversation_id},
+            )
 {%- endif %}
         return conversation
 
@@ -776,12 +780,16 @@ class ConversationService:
                 details={"conversation_id": conversation_id},
             )
 {%- if cookiecutter.use_jwt %}
-        if user_id is not None and hasattr(conversation, "user_id") and conversation.user_id is not None:
-            if str(conversation.user_id) != str(user_id):
-                raise NotFoundError(
-                    message="Conversation not found",
-                    details={"conversation_id": conversation_id},
-                )
+        if (
+            user_id is not None
+            and hasattr(conversation, "user_id")
+            and conversation.user_id is not None
+            and str(conversation.user_id) != str(user_id)
+        ):
+            raise NotFoundError(
+                message="Conversation not found",
+                details={"conversation_id": conversation_id},
+            )
 {%- endif %}
         return conversation
 

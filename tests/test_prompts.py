@@ -215,6 +215,7 @@ class TestPromptBasicInfo:
             "My description",
             "John Doe",
             "john@example.com",
+            "UTC",
         ]
         mock_questionary.text.return_value = mock_text
 
@@ -225,6 +226,7 @@ class TestPromptBasicInfo:
             "project_description": "My description",
             "author_name": "John Doe",
             "author_email": "john@example.com",
+            "timezone": "UTC",
         }
 
     @patch("fastapi_gen.prompts.questionary")
@@ -236,6 +238,7 @@ class TestPromptBasicInfo:
             "My description",
             "John Doe",
             "john@example.com",
+            "UTC",
         ]
         mock_questionary.text.return_value = mock_text
 
@@ -252,6 +255,7 @@ class TestPromptBasicInfo:
             "My description",
             "John Doe",
             "john@example.com",
+            "UTC",
         ]
         mock_questionary.text.return_value = mock_text
 
@@ -268,6 +272,7 @@ class TestPromptBasicInfo:
             "My description",
             "John Doe",
             "john@example.com",
+            "UTC",
         ]
         mock_questionary.text.return_value = mock_text
 
@@ -1046,6 +1051,7 @@ class TestRunInteractivePrompts:
             "project_description": "Test",
             "author_name": "Test Author",
             "author_email": "test@test.com",
+            "timezone": "UTC",
         }
         mock_database.return_value = DatabaseType.POSTGRESQL
         mock_orm_type.return_value = OrmType.SQLALCHEMY
@@ -1137,6 +1143,7 @@ class TestRunInteractivePrompts:
             "project_description": "Test",
             "author_name": "Test Author",
             "author_email": "test@test.com",
+            "timezone": "UTC",
         }
         mock_database.return_value = DatabaseType.POSTGRESQL
         mock_orm_type.return_value = OrmType.SQLALCHEMY
@@ -1225,6 +1232,7 @@ class TestRunInteractivePrompts:
             "project_description": "Test",
             "author_name": "Test Author",
             "author_email": "test@test.com",
+            "timezone": "UTC",
         }
         mock_database.return_value = DatabaseType.POSTGRESQL
         mock_orm_type.return_value = OrmType.SQLALCHEMY
@@ -1311,6 +1319,7 @@ class TestRunInteractivePrompts:
             "project_description": "Test",
             "author_name": "Test Author",
             "author_email": "test@test.com",
+            "timezone": "UTC",
         }
         mock_database.return_value = DatabaseType.POSTGRESQL
         mock_orm_type.return_value = OrmType.SQLALCHEMY
@@ -1398,6 +1407,7 @@ class TestRunInteractivePrompts:
             "project_description": "Test",
             "author_name": "Test Author",
             "author_email": "test@test.com",
+            "timezone": "UTC",
         }
         mock_database.return_value = DatabaseType.SQLITE
         mock_orm_type.return_value = OrmType.SQLALCHEMY
@@ -1483,6 +1493,7 @@ class TestRunInteractivePrompts:
             "project_description": "Test",
             "author_name": "Test Author",
             "author_email": "test@test.com",
+            "timezone": "UTC",
         }
         mock_database.return_value = DatabaseType.MONGODB
         mock_oauth.return_value = OAuthProvider.NONE
@@ -1571,6 +1582,7 @@ class TestRunInteractivePrompts:
             "project_description": "Test",
             "author_name": "Test Author",
             "author_email": "test@test.com",
+            "timezone": "UTC",
         }
         mock_database.return_value = DatabaseType.POSTGRESQL
         mock_orm_type.return_value = OrmType.SQLALCHEMY
@@ -1662,6 +1674,7 @@ class TestRunInteractivePrompts:
             "project_description": "Test",
             "author_name": "Test Author",
             "author_email": "test@test.com",
+            "timezone": "UTC",
         }
         mock_database.return_value = DatabaseType.POSTGRESQL
         mock_orm_type.return_value = OrmType.SQLALCHEMY
@@ -1756,6 +1769,7 @@ class TestRunInteractivePrompts:
             "project_description": "Test",
             "author_name": "Test Author",
             "author_email": "test@test.com",
+            "timezone": "UTC",
         }
         mock_database.return_value = DatabaseType.POSTGRESQL
         mock_orm_type.return_value = OrmType.SQLALCHEMY
@@ -2058,6 +2072,7 @@ class TestRunInteractivePromptsLangSmith:
             "project_description": "Test",
             "author_name": "Test Author",
             "author_email": "test@test.com",
+            "timezone": "UTC",
         }
         mock_database.return_value = DatabaseType.POSTGRESQL
         mock_orm_type.return_value = OrmType.SQLALCHEMY

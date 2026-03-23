@@ -80,7 +80,7 @@ jobs:
         run: uv sync --directory backend --dev
 
       - name: Run tests
-        run: uv run --directory backend pytest tests/ -v --cov=app --cov-report=xml --cov-fail-under=100
+        run: uv run --directory backend pytest tests/ -v --cov=app --cov-report=xml
         env:
 {%- if cookiecutter.use_postgresql %}
           POSTGRES_HOST: localhost

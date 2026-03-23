@@ -195,10 +195,10 @@ else:
     if not use_celery:
         remove_file(os.path.join(worker_dir, "celery_app.py"))
         remove_file(os.path.join(worker_dir, "tasks", "examples.py"))
-        remove_file(os.path.join(worker_dir, "tasks", "schedules.py"))
     if not use_taskiq:
         remove_file(os.path.join(worker_dir, "taskiq_app.py"))
         remove_file(os.path.join(worker_dir, "tasks", "taskiq_examples.py"))
+        remove_file(os.path.join(worker_dir, "tasks", "schedules.py"))
     if not use_arq:
         remove_file(os.path.join(worker_dir, "arq_app.py"))
 

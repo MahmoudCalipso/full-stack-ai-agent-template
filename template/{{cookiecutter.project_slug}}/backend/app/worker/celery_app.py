@@ -37,8 +37,6 @@ celery_app.conf.update(
 celery_app.autodiscover_tasks(["app.worker.tasks"])
 
 
-# === Beat Schedule ===
-# Add periodic tasks here
 celery_app.conf.beat_schedule = {
     "example-every-minute": {
         "task": "app.worker.tasks.examples.example_task",

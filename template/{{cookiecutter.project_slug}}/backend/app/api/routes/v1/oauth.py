@@ -12,8 +12,9 @@ from app.core.security import create_access_token, create_refresh_token
 
 router = APIRouter()
 
-# Frontend URL for OAuth callback redirect
-FRONTEND_URL = "http://localhost:{{ cookiecutter.frontend_port }}"
+from app.core.config import settings
+
+FRONTEND_URL = settings.FRONTEND_URL
 
 {%- if cookiecutter.enable_oauth_google %}
 

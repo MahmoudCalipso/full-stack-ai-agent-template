@@ -4,7 +4,6 @@
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from functools import lru_cache
 from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
@@ -12,18 +11,14 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from app.rag.retrieval import BaseRetrievalService
 
+_retrieval_service: "BaseRetrievalService | None" = None
 
-@lru_cache(maxsize=1)
-def _get_retrieval_service_cached() -> "BaseRetrievalService":
-    """Get cached retrieval service singleton.
 
-    This function uses lru_cache to create a cached singleton of the
-    RetrievalService. The cache is initialized on first call and reused
-    for subsequent calls.
-
-    Returns:
-        Configured BaseRetrievalService instance.
-    """
+def _get_retrieval_service() -> "BaseRetrievalService":
+    """Get or create retrieval service singleton."""
+    global _retrieval_service
+    if _retrieval_service is not None:
+        return _retrieval_service
     # Import here to avoid circular imports at module load time
     from app.rag.retrieval import RetrievalService
 {%- if cookiecutter.use_milvus %}
@@ -49,19 +44,13 @@ def _get_retrieval_service_cached() -> "BaseRetrievalService":
 {%- elif cookiecutter.use_pgvector %}
     vector_store = PgVectorStore(settings, embedding_service)
 {%- endif %}
-    return RetrievalService(vector_store, settings)
+    _retrieval_service = RetrievalService(vector_store, settings)
+    return _retrieval_service
 
 
 def get_retrieval_service() -> "BaseRetrievalService":
-    """Get the cached RetrievalService instance.
-
-    This function provides access to a cached RetrievalService singleton.
-    It uses lru_cache for proper caching behavior.
-
-    Returns:
-        Configured BaseRetrievalService instance.
-    """
-    return _get_retrieval_service_cached()
+    """Get the RetrievalService singleton."""
+    return _get_retrieval_service()
 
 
 async def search_knowledge_base(

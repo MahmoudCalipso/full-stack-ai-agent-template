@@ -35,6 +35,4 @@ async def scheduled_rag_sync_check() -> dict:
     result = await check_scheduled_syncs.kiq()
     return {"scheduled": True, "task_id": str(result.task_id)}
 {%- endif %}
-{%- else %}
-# Taskiq not enabled for this project
 {%- endif %}

@@ -76,7 +76,7 @@ async def get_supported_formats_endpoint():
 async def list_collections(
     vector_store: VectorStoreSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ):
     """List all available collections in the vector store."""
@@ -89,7 +89,7 @@ async def create_collection(
     name: str,
     vector_store: VectorStoreSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ):
     """Create and initialize a new collection."""
@@ -107,7 +107,7 @@ async def drop_collection(
     name: str,
     vector_store: VectorStoreSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ):
     """Drop an entire collection and all its vectors."""
@@ -119,7 +119,7 @@ async def get_collection_info(
     name: str,
     vector_store: VectorStoreSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ):
     """Retrieve stats for a specific collection."""
@@ -131,7 +131,7 @@ async def list_documents(
     name: str,
     vector_store: VectorStoreSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ):
     """List all documents in a specific collection."""
@@ -193,7 +193,7 @@ async def delete_document(
     document_id: str,
     ingestion_service: IngestionSvc,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin,
+    _: CurrentAdmin,
 {%- endif %}
 ):
     """Delete a specific document by its ID from a collection."""
@@ -213,7 +213,7 @@ async def ingest_file(
     ingestion_service: IngestionSvc = None,
     vector_store: VectorStoreSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
     replace: bool = Query(False),
 ):
@@ -354,7 +354,7 @@ def list_rag_documents(
 {%- endif %}
     rag_doc_svc: RAGDocumentSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
     collection_name: str | None = Query(None),
 ):
@@ -389,7 +389,7 @@ def download_rag_document(
     doc_id: str,
     rag_doc_svc: RAGDocumentSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """Download the original file."""
@@ -416,7 +416,7 @@ def delete_rag_document(
     rag_doc_svc: RAGDocumentSvc = None,
     ingestion_service: IngestionSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """Delete a document from SQL, vector store, and file storage."""
@@ -440,7 +440,7 @@ def retry_ingestion(
     doc_id: str,
     rag_doc_svc: RAGDocumentSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """Retry a failed document ingestion."""
@@ -465,7 +465,7 @@ def list_sync_logs(
 {%- endif %}
     rag_sync_svc: RAGSyncSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
     collection_name: str | None = Query(None),
     limit: int = Query(20, ge=1, le=100),
@@ -498,7 +498,7 @@ async def trigger_local_sync(
     background_tasks: BackgroundTasks,
     rag_sync_svc: RAGSyncSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """Trigger a local directory sync via background task."""
@@ -586,7 +586,7 @@ def cancel_sync(
     sync_id: str,
     rag_sync_svc: RAGSyncSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """Cancel a running sync operation."""
@@ -614,7 +614,7 @@ def list_sync_sources(
 {%- endif %}
     sync_source_svc: SyncSourceSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """List all configured sync sources."""
@@ -647,7 +647,7 @@ def create_sync_source(
     data: SyncSourceCreate,
     sync_source_svc: SyncSourceSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """Create a new sync source configuration."""
@@ -680,7 +680,7 @@ def update_sync_source(
     data: SyncSourceUpdate,
     sync_source_svc: SyncSourceSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """Update an existing sync source configuration."""
@@ -713,7 +713,7 @@ def delete_sync_source(
     source_id: str,
     sync_source_svc: SyncSourceSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """Delete a sync source configuration."""
@@ -728,15 +728,12 @@ def delete_sync_source(
 
 
 @router.post("/sync/sources/{source_id}/trigger", response_model=RAGSyncResponse)
-{%- if cookiecutter.use_postgresql %}
 async def trigger_sync_source(
-{%- else %}
-def trigger_sync_source(
-{%- endif %}
     source_id: str,
+    background_tasks: BackgroundTasks,
     sync_source_svc: SyncSourceSvc = None,
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """Trigger a manual sync for a configured source."""
@@ -748,6 +745,62 @@ def trigger_sync_source(
 {%- endif %}
     except NotFoundError as e:
         raise HTTPException(status_code=404, detail=e.message)
+
+    # Dispatch background task to execute the sync
+{%- if cookiecutter.use_celery %}
+    from app.worker.tasks.rag_tasks import sync_single_source_task
+    sync_single_source_task.delay(source_id, str(sync_log.id))
+{%- elif cookiecutter.use_taskiq %}
+    from app.worker.tasks.rag_tasks import sync_single_source_task
+    await sync_single_source_task.kiq(source_id, str(sync_log.id))
+{%- elif cookiecutter.use_arq %}
+    from app.worker.arq_app import get_arq_pool
+    pool = await get_arq_pool()
+    await pool.enqueue_job("sync_single_source_task", source_id, str(sync_log.id))
+{%- else %}
+    async def _run_source_sync_bg(src_id: str, log_id: str) -> None:
+        """Execute sync via FastAPI BackgroundTasks."""
+        from app.db.session import get_db_context
+        from app.services.sync_source import SyncSourceService
+        from app.rag.connectors import CONNECTOR_REGISTRY
+        from app.rag.ingestion import IngestionService
+        import tempfile
+        from pathlib import Path
+
+        async with get_db_context() as bg_db:
+            svc = SyncSourceService(bg_db)
+            try:
+                source = await svc.get_source(src_id)
+                connector_cls = CONNECTOR_REGISTRY.get(source.connector_type)
+                if not connector_cls:
+                    await svc.complete_sync(log_id, status="error", error_message=f"Unknown connector: {source.connector_type}")
+                    return
+                connector = connector_cls()
+                config = source.config if isinstance(source.config, dict) else {}
+                files = await connector.list_files(config)
+                ingestion = IngestionService()
+                ingested = failed = 0
+                with tempfile.TemporaryDirectory() as tmp_dir:
+                    for f in files:
+                        try:
+                            local_path = await connector.download_file(f, Path(tmp_dir))
+                            await ingestion.ingest_file(
+                                filepath=local_path, collection_name=source.collection_name,
+                                replace=(source.sync_mode == "full"), source_path=f.source_path,
+                            )
+                            ingested += 1
+                        except Exception as e:
+                            logger.warning(f"Sync file failed {f.name}: {e}")
+                            failed += 1
+                await svc.complete_sync(log_id, status="done" if not failed else "error",
+                    total_files=len(files), ingested=ingested, failed=failed)
+            except Exception as e:
+                logger.error(f"Source sync failed: {e}")
+                await svc.complete_sync(log_id, status="error", error_message=str(e))
+
+    background_tasks.add_task(_run_source_sync_bg, source_id, str(sync_log.id))
+{%- endif %}
+
     return RAGSyncResponse(
         id=str(sync_log.id),
         status="running",
@@ -758,7 +811,7 @@ def trigger_sync_source(
 @router.get("/sync/connectors", response_model=ConnectorList)
 async def list_connectors(
 {%- if cookiecutter.use_jwt %}
-    current_user: CurrentAdmin = None,
+    _: CurrentAdmin = None,
 {%- endif %}
 ):
     """List available sync connector types with their config schemas."""
