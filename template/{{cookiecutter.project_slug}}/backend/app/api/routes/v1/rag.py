@@ -103,7 +103,7 @@ async def create_collection(
     return RAGMessageResponse(message=f"Collection '{name}' created successfully.")
 
 
-@router.delete("/collections/{name}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/collections/{name}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 async def drop_collection(
     name: str,
     vector_store: VectorStoreSvc,
@@ -113,7 +113,7 @@ async def drop_collection(
 {%- if cookiecutter.use_jwt %}
     _: CurrentAdmin | None = None,
 {%- endif %}
-) -> Any:
+) -> None:
     """Drop an entire collection — vectors and all SQL document records."""
     await vector_store.delete_collection(name)
 {%- if cookiecutter.use_postgresql or cookiecutter.use_sqlite %}

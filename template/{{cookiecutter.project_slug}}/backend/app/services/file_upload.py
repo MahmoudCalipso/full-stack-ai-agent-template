@@ -183,7 +183,7 @@ class FileUploadService:
         try:
             import pymupdf
 
-            doc: Any = pymupdf.open(stream=data, filetype="pdf")  # type: ignore[no-untyped-call]
+            doc: Any = pymupdf.open(stream=data, filetype="pdf")
             texts = []
             for page in doc:
                 blocks = page.get_text("blocks")
@@ -452,7 +452,7 @@ class FileUploadService:
         try:
             import pymupdf
 
-            doc: Any = pymupdf.open(stream=data, filetype="pdf")  # type: ignore[no-untyped-call]
+            doc: Any = pymupdf.open(stream=data, filetype="pdf")
             texts = []
             for page in doc:
                 blocks = page.get_text("blocks")
