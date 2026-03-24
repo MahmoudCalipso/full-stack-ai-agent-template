@@ -569,8 +569,8 @@ export default function RAGPage() {
                           <Card key={i} className="p-3">
                             <div className="mb-1.5 flex flex-wrap items-center gap-2">
                               <FileText className="text-muted-foreground h-3.5 w-3.5" />
-                              <span className="text-xs font-medium">{r.metadata?.filename || "?"}</span>
-                              {r.metadata?.page_num && <Badge variant="outline" className="text-[10px]">p.{r.metadata.page_num}</Badge>}
+                              <span className="text-xs font-medium">{String(r.metadata?.filename ?? "?")}</span>
+                              {r.metadata?.page_num != null && <Badge variant="outline" className="text-[10px]">p.{String(r.metadata.page_num)}</Badge>}
                               <Badge variant="secondary" className="ml-auto text-[10px]">{r.score.toFixed(3)}</Badge>
                               {sourceDoc && (
                                 <a
