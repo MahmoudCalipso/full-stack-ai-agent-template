@@ -95,6 +95,14 @@ async def client_with_mock_service(
 {%- if cookiecutter.use_database %}
     app.dependency_overrides[get_db_session] = lambda: mock_db_session
 {%- endif %}
+{%- if cookiecutter.enable_session_management %}
+    from app.api.deps import get_session_service
+    mock_session_svc = MagicMock()
+    mock_session_svc.validate_refresh_token = ServiceMock(return_value=None)
+    mock_session_svc.create_session = ServiceMock(return_value=None)
+    mock_session_svc.logout_by_refresh_token = ServiceMock(return_value=None)
+    app.dependency_overrides[get_session_service] = lambda: mock_session_svc
+{%- endif %}
 
     async with AsyncClient(
         transport=ASGITransport(app=app),

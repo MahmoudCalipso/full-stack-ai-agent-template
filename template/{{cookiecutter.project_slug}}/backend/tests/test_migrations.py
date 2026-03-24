@@ -58,6 +58,9 @@ class TestMigrations:
             )
             assert result.returncode == 0, f"alembic {cmd} failed:\n{result.stderr}"
 
+{%- if cookiecutter.use_sqlite %}
+    @pytest.mark.skip(reason="SQLite in-memory DB does not persist between subprocess calls")
+{%- endif %}
     def test_current_matches_head(self):
         """Test that current migration revision matches head after upgrade."""
         # Upgrade to head first
