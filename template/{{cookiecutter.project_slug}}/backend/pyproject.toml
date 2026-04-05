@@ -320,6 +320,10 @@ deprecated = "warn"
 unresolved-import = "warn"
 # dict() overload matching on dynamic types from validators
 no-matching-overload = "warn"
+# Template uses mypy-style `# type: ignore` comments which ty doesn't recognize
+unused-type-ignore-comment = "warn"
+# Operations on Unknown types from untyped libraries (pymupdf, etc.)
+unsupported-operator = "warn"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
