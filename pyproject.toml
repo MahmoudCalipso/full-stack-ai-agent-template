@@ -136,6 +136,8 @@ line-ending = "auto"
 
 [tool.ty]
 python-version = "3.11"
+
+[tool.ty.src]
 # Exclude Jinja2 template files
 exclude = [
     "template/",
